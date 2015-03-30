@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+ <head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<title>PHP Hearts</title>
+	<link rel="stylesheet" type="text/css" href="style.css" />
+ </head>
+ <body>
+   <h1>Hearts &mdash; Hand #{hand_nr}</h1>
+   <table class="cardbox">
+     <tr>
+         <td> </td>
+         <td class="border">
+             <span class="playername">Player 3 &nbsp; </span>
+             <br>{player3_card}
+         </td>
+         <td> </td>
+     </tr>
+     <tr>
+         <td class="border"> 
+             <span class="playername">Player 2 &nbsp; </span>
+             <br>{player2_card}
+         </td>
+         <td class="infocell">
+             {table_center}
+         </td>
+         <td class="border"> 
+             <span class="playername">Player 4 &nbsp; </span>
+             <br>{player4_card}
+         </td>
+     </tr>
+     <tr>
+         <td> </td>
+         <td class="border">
+             <span class="playername">You &nbsp; </span>
+             <br>{player1_card}
+         </td>
+         <td> </td>
+     </tr>
+   </table>
+   
+   <p style="text-align: center">Your cards</p>
+   
+   <table class="cards">
+    <tr>
+       {card_table}
+    </tr>
+   </table>
+   
