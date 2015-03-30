@@ -62,7 +62,7 @@ class Game {
 	
 	
 	function __construct() {
-		$this->handNumber = 1;
+		$this->handNumber = 0;
 		$this->points  = array();
 		$this->players = array();
 		for ($i = 0; $i < self::N_OF_PLAYERS; ++$i) {
