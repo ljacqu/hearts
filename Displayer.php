@@ -12,11 +12,8 @@ class Displayer {
 	 */
 	private $game;
 	
-	private $sessid;
-	
-	function __construct(Game $game, $sessid) {
+	function __construct(Game $game) {
 		$this->game = $game;
-		$this->sessid = $sessid;
 	}
 	
 	function draw($centerMessage, $playable, $hasContinuation=true) {
@@ -26,7 +23,6 @@ class Displayer {
 		$tags['hand_nr'] = $this->game->getHandNumber();
 		if (!$playable && $hasContinuation) {
 			$tags['table_center'] .= "\r<form action=\"{$_SERVER['PHP_SELF']}\" method=\"post\">
-				<input type=\"hidden\" name=\"sessid\" value=\"{$this->sessid}\" />
 				<input type=\"submit\" value=\"Continue\" />
 			</form>";
 		}
@@ -61,7 +57,6 @@ class Displayer {
 		$tags = array();
 		$tags['color']  = $this->getHtmlCardColor($card);
 		$tags['card']   = $htmlSuit . '<br />' . $htmlNumber;
-		$tags['sessid'] = $this->sessid;
 		$tags['formaction'] = $_SERVER['PHP_SELF'];
 		$tags['cardcode'] = $card;
 		return $this->replaceTags($htmlTemplate, $tags);

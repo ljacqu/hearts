@@ -12,17 +12,6 @@ class Player {
 		$this->emptyCardList();
 	}
 	
-	static function __set_state($array) {
-		$obj = new Player;
-		foreach ($array as $key => $entry) {
-			if (!property_exists($obj, $key)) {
-				throw new Exception("Invalid property $key in Player!");
-			}
-			$obj->$key = $entry;
-		}
-		return $obj;
-	}
-	
 	function getCards() {
 		return $this->cards;
 	}
@@ -230,7 +219,7 @@ class Player {
 			return Game::HEARTS . $minCard;
 		} else {
 			var_dump($this->cards);
-			die('Error in startRound()');
+			throw new Exception('Error in startRound; did not expect empty card list');
 		}
 	}
 	

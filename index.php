@@ -1,5 +1,7 @@
 <?php
 error_reporting(E_ALL);
+session_start();
+
 $start = microtime(true);
 
 require 'functions.php';
@@ -7,23 +9,26 @@ require 'Game.php';
 require 'Player.php';
 require 'Displayer.php';
 
-unset($sessid, $game);
+unset($game);
+
+// Stop game if requested
+if (isset($_GET['stop_game'])) {
+	$_SESSION['game'] = null;
+	session_destroy();
+}
 
 // Load or create game
 if (isset($_POST['new_game']))
 {
-	$sessid = create_new_game_id();
 	$game = new Game;
-	save_game_to_file($game, $sessid);
+	//save_game_to_file($game);
 }
-else if (isset($_POST['sessid'])
-    && is_valid_game_id($_POST['sessid'])
-	&& game_exists($_POST['sessid']))
+else if (isset($_SESSION['game']))
 {
-	$sessid = $_POST['sessid'];
-	require id_to_filename($sessid);
-	if (!isset($game)) {
-		throw new Exception('Could not load game ' . $sessid);
+	$game = unserialize($_SESSION['game']);
+	if (!($game instanceof Game)) {
+		session_destroy();
+		throw new Exception('Could not load the game! Please reload.');
 	}
 }
 else
@@ -35,7 +40,7 @@ else
 	exit;
 }
 
-$displayer = new Displayer($game, $sessid);
+$displayer = new Displayer($game);
 $state = $game->getState();
 
 if ($state === Game::HAND_START) {
@@ -51,7 +56,7 @@ if ($state === Game::HAND_START) {
 		$displayer->draw($msg, false);
 		$game->playTillHuman();
 	}
-	save_game_to_file($game, $sessid);
+	save_game_to_session($game);
 }
 else if ($state === Game::AWAITING_CLUBS) {
 	// Important to manually check here that we got the two of clubs
@@ -60,7 +65,7 @@ else if ($state === Game::AWAITING_CLUBS) {
 		if ($result === Game::MOVE_OK) {
 			$nextRoundStarter = $game->playTillEnd();
 			$displayer->roundEndMessage($nextRoundStarter);
-			save_game_to_file($game, $sessid);
+			save_game_to_session($game);
 		} else {
 			// Throw an exception since we just checked that we got
 			// the two of clubs. We should never be in this clause!
@@ -78,7 +83,7 @@ else if ($state === Game::AWAITING_HUMAN) {
 		if ($result === Game::MOVE_OK) {
 			$nextRoundStarter = $game->playTillEnd();
 			$displayer->roundEndMessage($nextRoundStarter);
-			save_game_to_file($game, $sessid);
+			save_game_to_session($game);
 		}
 		else {
 			$displayer->handleCardError($result);
@@ -90,7 +95,7 @@ else if ($state === Game::AWAITING_HUMAN) {
 else if ($state === Game::ROUND_END) {
 	$game->playTillHuman();
 	$displayer->draw('Your turn', true);
-	save_game_to_file($game, $sessid);
+	save_game_to_session($game);
 }
 else if ($state === Game::GAME_END) {
 	$displayer->roundEndMessage(null);
@@ -102,7 +107,10 @@ else {
 
 $end = microtime(true);
 $gen_time = round($end - $start, 3);
-echo '<p class="footer">Page generated in ' . $gen_time . 's</p>';
+echo '<p class="footer">
+ Page generated in ' . $gen_time . '&nbsp;s
+ <br /><a href="?stop_game">Stop game?</a>
+</p>';
 ?>
 
  </body>

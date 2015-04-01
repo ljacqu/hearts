@@ -71,17 +71,6 @@ class Game {
 		$this->state = self::HAND_START;
 	}
 	
-	static function __set_state($array) {
-		$obj = new Game;
-		foreach ($array as $key => $entry) {
-			if (!property_exists($obj, $key)) {
-				throw new Exception("Invalid property $key in Game!");
-			}
-			$obj->$key = $entry;
-		}
-		return $obj;
-	}
-	
 	/**
 	 * Return the ID of the player who possesses the two of clubs.
 	 * @return int Player ID of owner of two of clubs card.
