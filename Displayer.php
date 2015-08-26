@@ -154,6 +154,14 @@ class Displayer {
 		$output .= "</tr>\r</table>";
 		return $output;
 	}
+  
+  function getHtmlCardDetails($card) {
+    return [
+      'suit' => $this->getHtmlCardSuit($card),
+      'number' => $this->getHtmlCardNumber($card),
+      'color' => $this->getHtmlCardColor($card)
+    ];
+  }
 	
 	private function getHtmlCardSuit($card) {
 		$suit = substr($card, 0, 1);

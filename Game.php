@@ -353,4 +353,11 @@ class Game {
 	function getHandNumber() {
 		return $this->handNumber;
 	}
+  /**
+   * Debug: returns the Player objects of the current game.
+   * @return Player[] The players of the game
+   */
+  function getPlayers() {
+    return $this->players;
+  }
 }
