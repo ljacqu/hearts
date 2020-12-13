@@ -11,11 +11,11 @@ require 'Player.php';
 require 'Displayer.php';
 
 if (isset($_SESSION['game'])) {
-	$game = unserialize($_SESSION['game']);
-	if (!($game instanceof Game)) {
-		session_destroy();
-		die('Could not load the game! <a href="index.php">Please create a new one.</a>');
-	}
+  $game = unserialize($_SESSION['game']);
+  if (!($game instanceof Game)) {
+    session_destroy();
+    die('Could not load the game! <a href="index.php">Please create a new one.</a>');
+  }
 } else {
   die('Did not find any game. <a href="index.php">Please create a new one.</a>');
 }
@@ -30,7 +30,7 @@ foreach ($players as $key => $player) {
   echo '<h1>Player ' . ($key + 1) . '</h1>';
   echo '<table class="cards"><tr>';
   $cards = array_flatten($player->getCards());
- 
+
   foreach ($cards as $card) {
     $html_data = $displayer->getHtmlCardDetails($card);
     echo <<<HTML
