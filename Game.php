@@ -54,14 +54,17 @@ class Game {
 
   /**
    * Return the ID of the player who possesses the two of clubs.
-   * @return int Player ID of owner of two of clubs card.
+   *
+   * @return int player ID of owner of two of clubs card
    */
-  function findTwoOfClubsOwner() {
+  private function findTwoOfClubsOwner() {
     for ($i = 0; $i < self::N_OF_PLAYERS; ++$i) {
       if ($this->players[$i]->hasCard(Card::CLUBS . '2')) {
         return $i;
       }
     }
+    var_dump($this->players);
+    throw new Exception('No player has two of clubs!');
   }
 
   /**
@@ -117,23 +120,16 @@ class Game {
   }
 
   /**
-   * Distributes cards to players by giving each player a random card
-   * until stack is empty.
+   * Distributes the cards to players randomly.
    */
   function distributeCards() {
-    for ($i = 0; $i < self::N_OF_PLAYERS; ++$i) {
-      $this->players[$i]->emptyCardList();
-    }
     $deck = $this->initializeDeck();
-    while(count($deck) >= self::N_OF_PLAYERS) {
-      shuffle($deck); // TODO: Sufficient to shuffle once outside of loop?
-      for ($i = 0; $i < self::N_OF_PLAYERS; ++$i) {
-        // TODO: Better way to do this?
-        $this->players[$i]->addCard( array_shift($deck) );
-      }
-    }
-    for ($i = 0; $i < self::N_OF_PLAYERS; ++$i) {
-      $this->players[$i]->sortCards();
+    shuffle($deck);
+
+    $cardsPerPlayer = floor(count($deck) / self::N_OF_PLAYERS);
+    foreach ($this->players as $index => $player) {
+      $newCards = array_slice($deck, $index * $cardsPerPlayer, $cardsPerPlayer);
+      $player->setCardsForNewRound($newCards);
     }
     $this->setupNewHand();
   }
@@ -166,10 +162,7 @@ class Game {
         throw new Exception("Found card for $playerId");
       }
       $this->currentRoundCards[$playerId] = $this->players[$playerId]->playCard(
-          $this->currentRoundSuit,
-          $this->currentRoundCards,
-          $this->heartsPlayed
-      );
+        $this->currentRoundSuit, $this->currentRoundCards, $this->heartsPlayed);
       $playerId = $this->nextPlayer($playerId);
     }
 
@@ -202,7 +195,7 @@ class Game {
     foreach ($this->currentRoundCards as $playerId => $card) {
       $suit   = Card::getCardSuit($card);
       $number = Card::getCardRank($card);
-      if ($suit == $this->currentRoundSuit && $number > $maxCardInSuit) {
+      if ($suit === $this->currentRoundSuit && $number > $maxCardInSuit) {
         $nextStarter = $playerId;
         $maxCardInSuit = $number;
       }
@@ -284,12 +277,15 @@ class Game {
   /**
    * Initializes a full deck of cards.
    *
-   * @return string[] Array of all cards, where the first character is the number for the suit, and the
-   * remaining 1-2 characters are the rank of the card.
+   * @return string[] all cards, where the first character is the number for the suit, and the
+   * remaining 1-2 characters are the rank of the card
    */
   private function initializeDeck() {
-    return array_merge($this->createCardsForSuit(Card::CLUBS), $this->createCardsForSuit(Card::DIAMONDS),
-      $this->createCardsForSuit(Card::SPADES), $this->createCardsForSuit(Card::HEARTS));
+    return array_merge(
+      $this->createCardsForSuit(Card::CLUBS),
+      $this->createCardsForSuit(Card::DIAMONDS),
+      $this->createCardsForSuit(Card::SPADES),
+      $this->createCardsForSuit(Card::HEARTS));
   }
 
   private function createCardsForSuit($suit) {

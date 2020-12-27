@@ -17,46 +17,49 @@ class Player {
 
   function hasEmptyCardList() {
     foreach ($this->cards as $list) {
-      if (count($list) > 0) return false;
+      if (!empty($list)) return false;
     }
     return true;
   }
 
   /**
    * Returns the card to play in the round.
-   * @param int The suit of the current round (constant from Game)
-   * @param int[] Array of played cards, where the key corresponds to the
+   *
+   * @param int $suit The suit of the current round (constant from Game)
+   * @param int[] $playedCards array of played cards, where the key corresponds to the
    *  player ID and the entry is the suit number and the value, e.g.
-   *  $played_cards[1] = 211 means player 1 played Spades J.
+   *  $played_cards[1] = 211 means player 1 played J of spades.
+   * @param boolean $heartsPlayed whether hearts can be used to start a round
+   * @return string the card the player wants to play
    */
-  function playCard($suit, array $playedCards, $heartsPlayed, $spadesQueenPlayed = false) {
+  function playCard($suit, array $playedCards, $heartsPlayed) {
     if (count($playedCards) == 0) {
-      return $this->startRound($heartsPlayed, $spadesQueenPlayed);
-    } else if (count($this->cards[$suit]) == 1) {
-      return $suit . array_pop($this->cards[$suit]);
-    } else if (count($this->cards[$suit]) > 1) {
-      return $this->selectBestSuitCard($playedCards, $suit);
+      $card = $this->startRound($heartsPlayed);
+    } else if (!empty($this->cards[$suit])) {
+      $card = $this->selectBestSuitCard($playedCards, $suit);
     } else {
-      return $this->getWorstCard($spadesQueenPlayed);
+      $card = $this->getWorstCard();
     }
+    $this->removeCard($card);
+    return $card;
   }
 
-
   /**
-   * Adds a card to the player list. It does not check whether the player already has the given card.
+   * Takes the given cards for the start of a new round. Cards are expected to be valid and unique.
    *
-   * @param string $card The card to add, represented by the numerical constants given in the game class. First
-   * character is the suit number, the remaining 1-2 characters the card number.
-   * @throws Exception .
+   * @param $cards string[] the cards belonging to the user for a new round
    */
-  function addCard($card) {
-    $suit   = Card::getCardSuit($card);
-    $number = Card::getCardRank($card);
-
-    if (!isset($this->cards[$suit])) {
-      throw new Exception('Illegal suit ' . htmlspecialchars($suit) . '!');
+  function setCardsForNewRound($cards) {
+    $this->emptyCardList();
+    foreach ($cards as $card) {
+      $suit   = Card::getCardSuit($card);
+      $number = Card::getCardRank($card);
+      if (!isset($this->cards[$suit])) {
+        throw new Exception('Illegal suit ' . htmlspecialchars($suit) . '!');
+      }
+      $this->cards[$suit][] = $number;
     }
-    $this->cards[$suit][] = $number;
+    $this->sortCards();
   }
 
   /**
@@ -78,7 +81,7 @@ class Player {
   /**
    * Resets the card list (empties all cards from list)
    */
-  function emptyCardList() {
+  private function emptyCardList() {
     $this->cards = [
       Card::CLUBS    => [],
       Card::DIAMONDS => [],
@@ -90,7 +93,7 @@ class Player {
   /**
    * Sorts the player's card list.
    */
-  function sortCards() {
+  private function sortCards() {
     foreach ($this->cards as &$cardsInSuit) {
       natsort($cardsInSuit);
     }
@@ -108,26 +111,21 @@ class Player {
     // Handle special cases with Spades.
     if ($suit == Card::SPADES) {
       if (in_array(Card::QUEEN, $this->cards[Card::SPADES])
-        && (in_array(Card::SPADES . Card::KING, $playedCards)
-            || in_array(Card::SPADES . Card::ACE,  $playedCards)))
-      {
-        $this->removeCard(Card::SPADES . Card::QUEEN);
+          && (in_array(Card::SPADES . Card::KING, $playedCards)
+              || in_array(Card::SPADES . Card::ACE,  $playedCards))) {
         return Card::SPADES . Card::QUEEN;
       }
-      else if (count($playedCards) == Game::N_OF_PLAYERS-1
-        && end($this->cards[Card::SPADES]) >= Card::KING)
-      {
-        // TODO: Bug -- need to check that queen of spades is NOT in $playedCards
-        $cardChoice = Card::SPADES . end($this->cards[Card::SPADES]);
-        $this->removeCard($cardChoice);
-        return $cardChoice;
+      else if (count($playedCards) === Game::N_OF_PLAYERS - 1
+               && end($this->cards[Card::SPADES]) >= Card::KING
+               && !in_array(Card::SPADES . Card::QUEEN, $playedCards)) {
+        return Card::SPADES . end($this->cards[Card::SPADES]);
       }
     }
 
     // Find the biggest card of the current suit
     $biggestPlayed = 0;
     foreach ($playedCards as $card) {
-      if (Card::getCardSuit($card) == $suit && Card::getCardRank($card) > $biggestPlayed) {
+      if (Card::getCardSuit($card) === $suit && Card::getCardRank($card) > $biggestPlayed) {
         $biggestPlayed = Card::getCardRank($card);
       }
     }
@@ -142,24 +140,23 @@ class Player {
     }
 
     if ($biggestPossible != 0) {
-      $this->removeCard($suit . $biggestPossible);
       return $suit . $biggestPossible;
     } else {
       // No card is small enough...
-      if (count($playedCards) == Game::N_OF_PLAYERS-1) {
+      if (count($playedCards) === Game::N_OF_PLAYERS - 1) {
         // We're going to take the cards, so let's get rid of the biggest
-        return $suit . array_pop($this->cards[$suit]);
+        return $suit . end($this->cards[$suit]);
       } else {
         // Let's hope someone else will have a bigger card
-        return $suit . array_shift($this->cards[$suit]);
-        // TODO: No removeCard here?
+        return $suit . reset($this->cards[$suit]);
       }
     }
   }
 
-  private function getWorstCard($spadesQueenPlayed = false) {
-    if (!$spadesQueenPlayed && count($this->cards[Card::SPADES]) > 0) {
-      $card = 0;
+  private function getWorstCard() {
+    // TODO: Check that queen of spades was not played
+    if (!empty($this->cards[Card::SPADES])) {
+      $card = false;
       if (in_array(Card::QUEEN, $this->cards[Card::SPADES])) {
         $card = Card::SPADES . Card::QUEEN;
       } else if (in_array(Card::ACE, $this->cards[Card::SPADES])) {
@@ -167,10 +164,9 @@ class Player {
       } else if (in_array(Card::KING, $this->cards[Card::SPADES])) {
         $card = Card::SPADES . Card::KING;
       } else if (end($this->cards[Card::SPADES]) > 7) {
-        $card = Card::SPADES . end($this->cards[Card::SPADES]); // TODO: check & refine
+        $card = Card::SPADES . end($this->cards[Card::SPADES]); // TODO: What does this do?
       }
-      if ($card != 0) {
-        $this->removeCard($card);
+      if ($card) {
         return $card;
       }
     }
@@ -178,15 +174,12 @@ class Player {
     $max = 0;
     $maxSuit = 0;
     foreach ($this->cards as $suit => $cardsOfSuit) {
-      foreach ($cardsOfSuit as $value) { // TODO: Sorted property of cards!!
-        if ($value > $max) {
-          $max = $value;
-          $maxSuit = $suit;
-        }
+      $value = end($cardsOfSuit);
+      if ($value > $max) {
+        $max = $value;
+        $maxSuit = $suit;
       }
     }
-
-    $this->removeCard($maxSuit . $max);
     return $maxSuit . $max;
   }
 
@@ -197,7 +190,7 @@ class Player {
    *  played yet.
    * @return string Card ID the player wants to use
    */
-  private function startRound($heartsPlayed, $spadesQueenPlayed) {
+  private function startRound($heartsPlayed) {
     $minCard = Card::ACE + 1;
     $minCardSuit = -1;
 
@@ -213,13 +206,11 @@ class Player {
     }
 
     if ($minCardSuit != -1) {
-      $this->removeCard($minCardSuit . $minCard);
       return $minCardSuit . $minCard;
     }
 
     if (count($this->cards[Card::HEARTS]) > 1) {
       $minCard = reset($this->cards[Card::HEARTS]);
-      $this->removeCard(Card::HEARTS . $minCard);
       return Card::HEARTS . $minCard;
     } else {
       var_dump($this->cards);
