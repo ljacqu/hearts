@@ -1,29 +1,9 @@
 <?php
 
 /**
- * Represents a game instance of Hearts
- * @author ljacqu
+ * Game instance of Hearts.
  */
 class Game {
-  // We assume that the following numbers
-  // represent the suits. Do not change.
-  const CLUBS    = 0;
-  const DIAMONDS = 1;
-  const SPADES   = 2;
-  const HEARTS   = 3;
-
-  // Internal card numbers. Do not change.
-  const JACK  = 11;
-  const QUEEN = 12;
-  const KING  = 13;
-  const ACE   = 14;
-
-  // Game states. Do not change.
-  const HAND_START      = 0;
-  const AWAITING_CLUBS  = 1;
-  const AWAITING_HUMAN  = 2;
-  const ROUND_END       = 3;
-  const GAME_END        = 5;
 
   // Card move codes. Do not change.
   const MOVE_OK        = 10;
@@ -31,35 +11,35 @@ class Game {
   const MOVE_NO_HEARTS = 12;
   const MOVE_BAD_CARD  = 13;
 
-  /** The number of players the game has */
+  /** @var int The number of players the game has. */
   const N_OF_PLAYERS = 4;
 
-  /** The player ID of the human */
+  /** @var int The player ID of the human. */
   const HUMAN_ID = 0;
 
-  /** Number of the current hand */
+  /** @var int Number of the current hand. */
   private $handNumber;
 
-  /** Player[] array containing four players */
+  /** @var Player[] Contains the players of the game. */
   private $players;
 
-  /** int[][] with hand and player ID as keys and subkeys */
+  /** @var int[][] with hand and player ID as keys and subkeys */
   private $points;
 
-  /** Boolean indicating whether Hearts have been played or not */
+  /** @var boolean Indicates whether Hearts have been played or not. */
   private $heartsPlayed;
 
-  /** int attribute to save current state (i.e. what should happen next) */
+  /** @var int Constant of {@link GameState} representing the current state (i.e. what should happen next). */
   private $state;
 
-  /** int[] Cards of the current round */
+  /** @var string[] Cards of the current round. */
   private $currentRoundCards;
 
   private $currentRoundSuit;
 
   private $currentRoundStarter;
 
-  /** int[] Points in the current hand */
+  /** @var int[] Points in the current hand by player. */
   private $currentHandPoints;
 
   function __construct() {
@@ -67,9 +47,9 @@ class Game {
     $this->points  = array();
     $this->players = array();
     for ($i = 0; $i < self::N_OF_PLAYERS; ++$i) {
-      $this->players[] = new Player;
+      $this->players[] = new Player();
     }
-    $this->state = self::HAND_START;
+    $this->state = GameState::HAND_START;
   }
 
   /**
@@ -78,7 +58,7 @@ class Game {
    */
   function findTwoOfClubsOwner() {
     for ($i = 0; $i < self::N_OF_PLAYERS; ++$i) {
-      if ($this->players[$i]->hasCard(self::CLUBS . '2')) {
+      if ($this->players[$i]->hasCard(Card::CLUBS . '2')) {
         return $i;
       }
     }
@@ -87,13 +67,10 @@ class Game {
   /**
    *
    * @param string $card
-   * @return Game code to signal the success or the precise error of the move
-   *  the human player wants to make.
+   * @return int Game code to signal the success or the precise error of the move the human player wants to make
    */
   function processHumanMove($card) {
-    if (!is_scalar($card) || strlen($card) < 2
-        || !$this->players[self::HUMAN_ID]->hasCard($card))
-    {
+    if (!is_scalar($card) || strlen($card) < 2 || !$this->players[self::HUMAN_ID]->hasCard($card)) {
       return self::MOVE_BAD_CARD;
     }
 
@@ -107,7 +84,7 @@ class Game {
   }
 
   private function processHumanSuit($card) {
-    $suit = substr($card, 0, 1);
+    $suit = Card::getCardSuit($card);
 
     if (count($this->currentRoundCards) > 0) {
       if ($suit == $this->currentRoundSuit
@@ -119,11 +96,11 @@ class Game {
       }
     } else {
       // Human starts the hand
-      if ($suit == self::HEARTS && !$this->heartsPlayed) {
+      if ($suit == Card::HEARTS && !$this->heartsPlayed) {
         // Accept hearts if human has no other cards
-        return (!$this->players[self::HUMAN_ID]->hasCardsForSuit(self::CLUBS)
-           && !$this->players[self::HUMAN_ID]->hasCardsForSuit(self::DIAMONDS)
-           && !$this->players[self::HUMAN_ID]->hasCardsForSuit(self::SPADES))
+        return (!$this->players[self::HUMAN_ID]->hasCardsForSuit(Card::CLUBS)
+           && !$this->players[self::HUMAN_ID]->hasCardsForSuit(Card::DIAMONDS)
+           && !$this->players[self::HUMAN_ID]->hasCardsForSuit(Card::SPADES))
         ? self::MOVE_OK
         : self::MOVE_NO_HEARTS;
       }
@@ -135,7 +112,7 @@ class Game {
     $this->currentRoundCards[self::HUMAN_ID] = $card;
     $this->players[self::HUMAN_ID]->removeCard($card);
     if (count($this->currentRoundCards) === 1) {
-      $this->currentRoundSuit = substr($card, 0, 1);
+      $this->currentRoundSuit = Card::getCardSuit($card);
     }
   }
 
@@ -164,24 +141,21 @@ class Game {
   function playTillHuman() {
     $this->currentRoundCards = array();
     $playerId = $this->currentRoundStarter;
-    if ($this->state == self::HAND_START && $playerId != self::HUMAN_ID) {
-      $this->players[$playerId]->removeCard(self::CLUBS . 2);
-      $this->currentRoundCards[$playerId] = self::CLUBS . 2;
+    if ($this->state == GameState::HAND_START && $playerId != self::HUMAN_ID) {
+      $this->players[$playerId]->removeCard(Card::CLUBS . 2);
+      $this->currentRoundCards[$playerId] = Card::CLUBS . 2;
       $playerId = $this->nextPlayer($playerId);
     }
 
     while ($playerId != self::HUMAN_ID) {
       $this->currentRoundCards[$playerId] = $this->players[$playerId]->playCard(
-          $this->currentRoundSuit,
-          $this->currentRoundCards,
-          $this->heartsPlayed
-      );
+        $this->currentRoundSuit, $this->currentRoundCards, $this->heartsPlayed);
       if (count($this->currentRoundCards) === 1) {
-        $this->currentRoundSuit = substr(reset($this->currentRoundCards), 0, 1);
+        $this->currentRoundSuit = Card::getCardSuit(reset($this->currentRoundCards));
       }
       $playerId = $this->nextPlayer($playerId);
     }
-    $this->state = self::AWAITING_HUMAN;
+    $this->state = GameState::AWAITING_HUMAN;
   }
 
   function playTillEnd() {
@@ -217,7 +191,8 @@ class Game {
    * Note: Do not clear $this->currentRoundCards here but empty it at the start
    *  of playTillHuman. This way, the Displayer class can still access and
    *  display the cards of the round to the human.
-   * @return The ID of the player who has to start the next round; null if
+   *
+   * @return int the ID of the player who has to start the next round; null if
    *  the hand has been completed.
    */
   private function prepareNextRound() {
@@ -225,13 +200,13 @@ class Game {
     $maxCardInSuit = 0;
     $totalPoints = 0;
     foreach ($this->currentRoundCards as $playerId => $card) {
-      $suit   = substr($card, 0, 1);
-      $number = substr($card, 1);
+      $suit   = Card::getCardSuit($card);
+      $number = Card::getCardRank($card);
       if ($suit == $this->currentRoundSuit && $number > $maxCardInSuit) {
         $nextStarter = $playerId;
         $maxCardInSuit = $number;
       }
-      $totalPoints += $this->pointsFromCard($suit, $number);
+      $totalPoints += Card::getPoints($suit, $number);
     }
     $this->currentHandPoints[$nextStarter] += $totalPoints;
     $this->currentRoundStarter = $nextStarter;
@@ -241,7 +216,7 @@ class Game {
       $this->state = $this->endCurrentHand();
       return null;
     } else {
-      $this->state = self::ROUND_END;
+      $this->state = GameState::ROUND_END;
       return $nextStarter;
     }
   }
@@ -256,50 +231,39 @@ class Game {
     $this->points[] = $this->currentHandPoints;
     $this->currentHandPoints = array_fill(0, self::N_OF_PLAYERS, 0);
 
-    // Sum points for every player; if one player has >= 100 points,
-    // signal that the game has ended.
+    // Sum points for every player; if one player has >= 100 points, signal that the game has ended.
     for ($i = 0; $i < self::N_OF_PLAYERS; ++$i) {
       $totalPoints = array_sum(array_column($this->points, $i));
-      if ($totalPoints >= 100) return self::GAME_END;
+      if ($totalPoints >= 100) {
+        return GameState::GAME_END;
+      }
     }
-    return self::HAND_START;
+    return GameState::HAND_START;
   }
 
   function startNewHand() {
     $this->distributeCards();
     ++$this->handNumber;
-    $this->currentRoundSuit = self::CLUBS;
+    $this->currentRoundSuit = Card::CLUBS;
     $this->heartsPlayed = false;
     $this->currentRoundCards = array();
     $this->currentRoundStarter = $this->findTwoOfClubsOwner();
     if ($this->currentRoundStarter == self::HUMAN_ID) {
-      $this->state = self::AWAITING_CLUBS;
-    }
-  }
-
-  private function pointsFromCard($suit, $number) {
-    if ($suit == self::HEARTS) {
-      return 1;
-    } else if ($number == self::QUEEN && $suit == self::SPADES) {
-      return 13;
-    } else {
-      return 0;
+      $this->state = GameState::AWAITING_CLUBS;
     }
   }
 
   /**
-   * Returns whether or not there is any card of the Hearts suit.
-   * @param array $playedCards
-   * @return boolean
+   * Updates the hearts played flag if necessary. Once a hearts card has been played, players may start rounds
+   * with a hearts card.
    */
   private function updateHeartsPlayed() {
-    if ($this->heartsPlayed) {
-      return;
-    }
-    foreach ($this->currentRoundCards as $card) {
-      if (substr($card, 0, 1) == self::HEARTS) {
-        $this->heartsPlayed = true;
-        return;
+    if (!$this->heartsPlayed) {
+      foreach ($this->currentRoundCards as $card) {
+        if (Card::getCardSuit($card) === Card::HEARTS) {
+          $this->heartsPlayed = true;
+          return;
+        }
       }
     }
   }
@@ -308,9 +272,9 @@ class Game {
    * Called at the end of distributeCards()
    */
   private function setupNewHand() {
-    $this->state = self::HAND_START;
+    $this->state = GameState::HAND_START;
     $this->currentRoundStarter = $this->findTwoOfClubsOwner();
-    $this->currentRoundSuit    = self::CLUBS;
+    $this->currentRoundSuit    = Card::CLUBS;
     $this->currentHandPoints  = array();
     for ($i = 0; $i < self::N_OF_PLAYERS; ++$i) {
       $this->currentHandPoints[] = 0;
@@ -318,19 +282,20 @@ class Game {
   }
 
   /**
-   * Initializes a full deck of cards
-   * @return string[] Array of all cards, where the first character is the
-   *  number for the suit, and the remaining 1-2 characters are the number of
-   *  the card.
+   * Initializes a full deck of cards.
+   *
+   * @return string[] Array of all cards, where the first character is the number for the suit, and the
+   * remaining 1-2 characters are the rank of the card.
    */
   private function initializeDeck() {
-    $deck = array();
-    for ($i = self::CLUBS; $i <= self::HEARTS; ++$i) {
-      for ($j = 2; $j <= self::ACE; ++$j) {
-        $deck[] = (string) $i.$j;
-      }
-    }
-    return $deck;
+    return array_merge($this->createCardsForSuit(Card::CLUBS), $this->createCardsForSuit(Card::DIAMONDS),
+      $this->createCardsForSuit(Card::SPADES), $this->createCardsForSuit(Card::HEARTS));
+  }
+
+  private function createCardsForSuit($suit) {
+    return array_map(function ($rank) use ($suit) {
+      return $suit . $rank;
+    }, range(2, Card::ACE));
   }
 
   function getHumanCards() {
@@ -339,9 +304,6 @@ class Game {
   function getState() {
     return $this->state;
   }
-  /*function setState($state) {
-    $this->state = $state;
-  }*/
   function getCurrentRoundCards() {
     return $this->currentRoundCards;
   }

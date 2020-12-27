@@ -1,8 +1,7 @@
 <?php
 
 /**
- * Display the game to the user.
- * @author ljacqu
+ * Displays the game to the user.
  */
 class Displayer {
 
@@ -22,7 +21,7 @@ class Displayer {
     $tags['table_center'] = $centerMessage;
     $tags['hand_nr'] = $this->game->getHandNumber();
     if (!$playable && $hasContinuation) {
-      $tags['table_center'] .= "\r<form action=\"{$_SERVER['PHP_SELF']}\" method=\"post\">
+      $tags['table_center'] .= "\n<form action=\"{$_SERVER['PHP_SELF']}\" method=\"post\">
         <input type=\"submit\" value=\"Continue\" />
       </form>";
     }
@@ -45,7 +44,7 @@ class Displayer {
     $output = '';
     foreach ($cards as $suit => $cardsOfSuit) {
       foreach ($cardsOfSuit as $card) {
-        $output .= "\r" . $this->prepareCardCell($htmlTemplate, $suit.$card);
+        $output .= "\n" . $this->prepareCardCell($htmlTemplate, $suit.$card);
       }
     }
     return $output;
@@ -95,7 +94,7 @@ class Displayer {
   function roundEndMessage($nextPlayer) {
     if ($nextPlayer === null) {
       $pointsTable = $this->generatePointsTable();
-      if ($this->game->getState() == Game::GAME_END) {
+      if ($this->game->getState() == GameState::GAME_END) {
         $message = 'End of game!<br />' . $pointsTable;
         $hasContinuation = false;
       } else {
@@ -128,7 +127,7 @@ class Displayer {
     $points = $this->game->getPoints();
     $sum = array_fill(0, Game::N_OF_PLAYERS, 0);
     
-    $output = "<table class=\"points\">\r <tr>";
+    $output = "<table class=\"points\">\n <tr>";
     for ($i = 0; $i < Game::N_OF_PLAYERS; ++$i) {
       if ($i == Game::HUMAN_ID) {
         $output .= '<th>You</th>';
@@ -139,7 +138,7 @@ class Displayer {
     $output .= '</tr>';
 
     foreach ($points as $entries) {
-      $output .= "\r <tr>";
+      $output .= "\n <tr>";
       foreach ($entries as $player => $entry) {
         $output .= "<td>$entry</td>";
         $sum[$player] += $entry;
@@ -147,11 +146,11 @@ class Displayer {
       $output .= '</tr>';
     }
 
-    $output .= "\r <tr class=\"sum\">";
+    $output .= "\n <tr class=\"sum\">";
     for ($i = 0; $i < Game::N_OF_PLAYERS; ++$i) {
       $output .= '<td>' . $sum[$i] . '</td>';
     }
-    $output .= "</tr>\r</table>";
+    $output .= "</tr>\n</table>";
     return $output;
   }
   
@@ -164,32 +163,29 @@ class Displayer {
   }
 
   private function getHtmlCardSuit($card) {
-    $suit = substr($card, 0, 1);
+    $suit = Card::getCardSuit($card);
     switch ($suit) {
-      case Game::CLUBS:    return '&clubs;';
-      case Game::DIAMONDS: return '&diams;';
-      case Game::SPADES:   return '&spades;';
-      case Game::HEARTS:   return '&hearts;';
+      case Card::CLUBS:    return '&clubs;';
+      case Card::DIAMONDS: return '&diams;';
+      case Card::SPADES:   return '&spades;';
+      case Card::HEARTS:   return '&hearts;';
       default: throw new Exception("Unknown suit: " . htmlspecialchars($suit));
     }
   }
 
   private function getHtmlCardNumber($card) {
-    $number = substr($card, 1);
+    $number = Card::getCardRank($card);
     switch ($number) {
-      case Game::JACK:  return 'J';
-      case Game::QUEEN: return 'Q';
-      case Game::KING:  return 'K';
-      case Game::ACE:   return 'A';
+      case Card::JACK:  return 'J';
+      case Card::QUEEN: return 'Q';
+      case Card::KING:  return 'K';
+      case Card::ACE:   return 'A';
       default: return $number;
     }
   }
 
   private function getHtmlCardColor($card) {
-    $suit = substr($card, 0, 1);
-    return ($suit == Game::DIAMONDS || $suit == Game::HEARTS)
-         ? 'red' : 'black';
+    $suit = Card::getCardSuit($card);
+    return ($suit == Card::DIAMONDS || $suit == Card::HEARTS) ? 'red' : 'black';
   }
-
-
 }

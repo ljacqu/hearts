@@ -5,6 +5,8 @@ session_start();
 $start = microtime(true);
 
 require 'functions.php';
+require 'Card.php';
+require 'GameState.php';
 require 'Game.php';
 require 'Player.php';
 require 'Displayer.php';
@@ -18,21 +20,15 @@ if (isset($_GET['stop_game'])) {
 }
 
 // Load or create game
-if (isset($_POST['new_game']))
-{
-  $game = new Game;
-  //save_game_to_file($game);
-}
-else if (isset($_SESSION['game']))
-{
+if (isset($_POST['new_game'])) {
+  $game = new Game();
+} else if (isset($_SESSION['game'])) {
   $game = unserialize($_SESSION['game']);
   if (!($game instanceof Game)) {
     session_destroy();
     throw new Exception('Could not load the game! Please reload.');
   }
-}
-else
-{
+} else {
   // Offer to create a new game if we don't have any session.
   echo '<form action="'.$_SERVER['PHP_SELF'].'" method="post">
 <input type="submit" style="margin: auto" value="Create new game" name="new_game" />
@@ -43,7 +39,7 @@ else
 $displayer = new Displayer($game);
 $state = $game->getState();
 
-if ($state === Game::HAND_START) {
+if ($state === GameState::HAND_START) {
   // If this method didn't change the game state, this would open a door to
   // cheating, because cards would be distributed upon every reload.
   $game->startNewHand();
@@ -58,9 +54,9 @@ if ($state === Game::HAND_START) {
   }
   save_game_to_session($game);
 }
-else if ($state === Game::AWAITING_CLUBS) {
+else if ($state === GameState::AWAITING_CLUBS) {
   // Important to manually check here that we got the two of clubs
-  if (post_is_valid_card_format('card') && $_POST['card'] == Game::CLUBS . 2) {
+  if (post_is_valid_card_format('card') && $_POST['card'] == Card::CLUBS . 2) {
     $result = $game->processHumanMove($_POST['card']);
     if ($result === Game::MOVE_OK) {
       $nextRoundStarter = $game->playTillEnd();
@@ -77,7 +73,7 @@ else if ($state === Game::AWAITING_CLUBS) {
     $displayer->draw($message, true);
   }
 }
-else if ($state === Game::AWAITING_HUMAN) {
+else if ($state === GameState::AWAITING_HUMAN) {
   if (post_is_valid_card_format('card')) {
     $result = $game->processHumanMove($_POST['card']);
     if ($result === Game::MOVE_OK) {
@@ -92,12 +88,12 @@ else if ($state === Game::AWAITING_HUMAN) {
     $displayer->draw('Your turn.', true);
   }
 }
-else if ($state === Game::ROUND_END) {
+else if ($state === GameState::ROUND_END) {
   $game->playTillHuman();
   $displayer->draw('Your turn', true);
   save_game_to_session($game);
 }
-else if ($state === Game::GAME_END) {
+else if ($state === GameState::GAME_END) {
   $displayer->roundEndMessage(null);
 }
 else {

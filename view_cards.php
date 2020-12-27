@@ -1,11 +1,11 @@
 <?php
 /**
  * Displays the cards in the current session's game for debug purposes.
- * @author ljacqu
  */
 error_reporting(E_ALL);
 session_start();
 require 'functions.php';
+require 'Card.php';
 require 'Game.php';
 require 'Player.php';
 require 'Displayer.php';
