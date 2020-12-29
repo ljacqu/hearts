@@ -10,6 +10,7 @@ class Game {
   const MOVE_BAD_SUIT  = 11;
   const MOVE_NO_HEARTS = 12;
   const MOVE_BAD_CARD  = 13;
+  const MOVE_EXPECTING_TWO_OF_CLUBS = 14;
 
   /** @var int The number of players the game has. */
   const N_OF_PLAYERS = 4;
@@ -17,34 +18,42 @@ class Game {
   /** @var int The player ID of the human. */
   const HUMAN_ID = 0;
 
+  // ------ Game state
   /** @var int Number of the current hand. */
   private $handNumber;
 
   /** @var IPlayer[] Contains the players of the game. */
   private $players;
 
-  /** @var int[][] with hand and player ID as keys and subkeys */
+  /** @var int[][] Points with hand and player ID as keys and subkeys. */
   private $points;
-
-  /** @var boolean Indicates whether Hearts have been played or not. */
-  private $heartsPlayed;
 
   /** @var int Constant of {@link GameState} representing the current state (i.e. what should happen next). */
   private $state;
 
-  /** @var string[] Cards of the current round. */
-  private $currentRoundCards;
-
-  private $currentRoundSuit;
-
-  private $currentRoundStarter;
+  // ------ Hand state
+  /** @var boolean Indicates whether Hearts have been played or not. */
+  private $heartsPlayed;
 
   /** @var CardContainer[] Cards of the current hand by player index. */
   private $currentHandCards;
-  
 
   /** @var int[] Points in the current hand by player. */
   private $currentHandPoints;
+
+  /** @var boolean True when it's the start of the hand and the round starter has two play the two of clubs. */
+  private $needTwoOfClubs;
+
+  // ------ Round state
+  /** @var string[] Cards of the current round. */
+  private $currentRoundCards;
+
+  /** @var int The suit of the round (value of a constant on {@link Card}). */
+  private $currentRoundSuit;
+
+  /** @var int The player ID that starts the round. */
+  private $currentRoundStarter;
+
 
   function __construct() {
     $this->handNumber = 0;
@@ -73,16 +82,13 @@ class Game {
   }
 
   /**
+   * Processes the input card by the human player.
    *
-   * @param string $card
+   * @param string $card code of the chosen card
    * @return int Game code to signal the success or the precise error of the move the human player wants to make
    */
   function processHumanMove($card) {
-    if (!is_scalar($card) || strlen($card) < 2 || !$this->currentHandCards[self::HUMAN_ID]->hasCard($card)) {
-      return self::MOVE_BAD_CARD;
-    }
-
-    $checkSuit = $this->processHumanSuit($card);
+    $checkSuit = $this->validateCardPlay($this->currentHandCards[self::HUMAN_ID], $card);
     if ($checkSuit === self::MOVE_OK) {
       $this->registerHumanMove($card);
       return self::MOVE_OK;
@@ -91,28 +97,39 @@ class Game {
     }
   }
 
-  private function processHumanSuit($card) {
-    $suit = Card::getCardSuit($card);
-
-    if (!empty($this->currentRoundCards)) {
-      if ($suit === $this->currentRoundSuit
-          || !$this->currentHandCards[self::HUMAN_ID]->hasCardForSuit($this->currentRoundSuit)) {
-        return self::MOVE_OK;
-      } else {
-        return self::MOVE_BAD_SUIT;
-      }
-    } else {
-      // Human starts the hand
-      if ($suit === Card::HEARTS && !$this->heartsPlayed) {
-        // Accept hearts if human has no other cards
-        return (!$this->currentHandCards[self::HUMAN_ID]->hasCardForSuit(Card::CLUBS)
-            && !$this->currentHandCards[self::HUMAN_ID]->hasCardForSuit(Card::DIAMONDS)
-            && !$this->currentHandCards[self::HUMAN_ID]->hasCardForSuit(Card::SPADES))
-          ? self::MOVE_OK
-          : self::MOVE_NO_HEARTS;
-      }
-      return self::MOVE_OK;
+  /**
+   * Validates the card chosen by the player. This method does not change any game state except for setting
+   * {@link needTwoOfClubs} to false when appropriate.
+   *
+   * @param CardContainer $playerCards the cards of the player whose chosen card should be validated
+   * @param string $chosenCard the code of the chosen card
+   * @return int Game constant indicating the result of the card validation
+   */
+  private function validateCardPlay($playerCards, $chosenCard) {
+    if (!$playerCards->hasCard($chosenCard)) {
+      return self::MOVE_BAD_CARD;
     }
+    if ($this->needTwoOfClubs) {
+      if ($chosenCard === Card::CLUBS . 2) {
+        $this->needTwoOfClubs = false;
+        return self::MOVE_OK;
+      }
+      return self::MOVE_EXPECTING_TWO_OF_CLUBS;
+    }
+
+    $suit = Card::getCardSuit($chosenCard);
+    if (!empty($this->currentRoundCards)) {
+      return $suit === $this->currentRoundSuit || !$playerCards->hasCardForSuit($this->currentRoundSuit)
+        ? self::MOVE_OK
+        : self::MOVE_BAD_SUIT;
+    }
+
+    // New round is started: need to make sure hearts are allowed to be played
+    if ($suit === Card::HEARTS && !$this->heartsPlayed
+        && $playerCards->hasCardForSuit(Card::CLUBS, Card::DIAMONDS, Card::SPADES)) {
+      return self::MOVE_NO_HEARTS;
+    }
+    return self::MOVE_OK;
   }
 
   private function registerHumanMove($card) {
@@ -135,24 +152,30 @@ class Game {
     foreach ($this->players as $index => $player) {
       $newCards = array_slice($deck, $index * $cardsPerPlayer, $cardsPerPlayer);
       $this->currentHandCards[$index] = new CardContainer($newCards);
-      $player->setCardsForNewRound($newCards);
+      $player->processCardsForNewHand($newCards);
     }
   }
 
   function playTillHuman() {
     $this->currentRoundCards = array();
     $playerId = $this->currentRoundStarter;
-    if ($this->state === GameState::HAND_START && $playerId !== self::HUMAN_ID) {
-      $this->players[$playerId]->processHandStart(); // todo expect this to come from `playCard` instead?
-      $this->currentHandCards[$playerId]->removeCard(Card::CLUBS . 2);
-      $this->currentRoundCards[$playerId] = Card::CLUBS . 2;
-      $playerId = $this->nextPlayer($playerId);
-    }
 
     while ($playerId != self::HUMAN_ID) {
-      $this->currentRoundCards[$playerId] = $this->players[$playerId]->playCard(
-        $this->currentRoundSuit, $this->currentRoundCards, $this->heartsPlayed);
-      $this->currentHandCards[$playerId]->removeCard($this->currentRoundCards[$playerId]); // todo validate
+      if (isset($this->currentRoundCards[$playerId])) {
+        var_dump($this->currentRoundCards);
+        throw new Exception("Found card for $playerId");
+      }
+
+      $card = $this->players[$playerId]->playCard($this->currentRoundSuit, $this->currentRoundCards,
+        $this->heartsPlayed, $this->needTwoOfClubs);
+      $cardMoveCode = $this->validateCardPlay($this->currentHandCards[$playerId], $card);
+      if ($cardMoveCode !== Game::MOVE_OK) {
+        throw new Exception(
+          "Player $playerId played card '$card' which resulted in validation code $cardMoveCode");
+      }
+
+      $this->currentRoundCards[$playerId] = $card;
+      $this->currentHandCards[$playerId]->removeCard($card);
       if (count($this->currentRoundCards) === 1) {
         $this->currentRoundSuit = Card::getCardSuit(reset($this->currentRoundCards));
       }
@@ -164,13 +187,22 @@ class Game {
   function playTillEnd() {
     $playerId = $this->nextPlayer(self::HUMAN_ID);
     while ($playerId != $this->currentRoundStarter) {
+      // todo remove duplication
       if (isset($this->currentRoundCards[$playerId])) {
         var_dump($this->currentRoundCards);
         throw new Exception("Found card for $playerId");
       }
-      $this->currentRoundCards[$playerId] = $this->players[$playerId]->playCard(
-        $this->currentRoundSuit, $this->currentRoundCards, $this->heartsPlayed);
-      $this->currentHandCards[$playerId]->removeCard($this->currentRoundCards[$playerId]); // todo validate
+
+      $card = $this->players[$playerId]->playCard($this->currentRoundSuit, $this->currentRoundCards,
+        $this->heartsPlayed, $this->needTwoOfClubs);
+      $cardMoveCode = $this->validateCardPlay($this->currentHandCards[$playerId], $card);
+      if ($cardMoveCode !== Game::MOVE_OK) {
+        throw new Exception(
+          "Player $playerId played card '$card' which resulted in validation code $cardMoveCode");
+      }
+
+      $this->currentRoundCards[$playerId] = $card;
+      $this->currentHandCards[$playerId]->removeCard($card);
       $playerId = $this->nextPlayer($playerId);
     }
 
@@ -193,8 +225,7 @@ class Game {
    *  of playTillHuman. This way, the Displayer class can still access and
    *  display the cards of the round to the human.
    *
-   * @return int the ID of the player who has to start the next round; null if
-   *  the hand has been completed.
+   * @return int the ID of the player who has to start the next round; null if the hand has been completed.
    */
   private function prepareNextRound() {
     $nextStarter = -1;
@@ -213,7 +244,7 @@ class Game {
     $this->currentRoundStarter = $nextStarter;
 
     $this->updateHeartsPlayed();
-    if (!$this->currentHandCards[0]->hasAnyCard()) {
+    if ($this->currentHandCards[0]->isEmpty()) {
       $this->state = $this->endCurrentHand();
       return null;
     } else {
@@ -255,9 +286,7 @@ class Game {
     $this->heartsPlayed = false;
     $this->currentRoundCards = array();
     $this->currentRoundStarter = $this->findTwoOfClubsOwner();
-    if ($this->currentRoundStarter == self::HUMAN_ID) {
-      $this->state = GameState::AWAITING_CLUBS;
-    }
+    $this->needTwoOfClubs = true;
   }
 
   /**
@@ -312,6 +341,19 @@ class Game {
   }
   function getHandNumber() {
     return $this->handNumber;
+  }
+  function getNeedTwoOfClubs() {
+    return $this->needTwoOfClubs;
+  }
+
+  function getDebugValues() {
+    return [
+      'state' => $this->state,
+      'needTwoOfClubs' => $this->needTwoOfClubs ? 'true' : 'false',
+      'currentRoundStarter' => $this->currentRoundStarter + 1, // Note: 1-based player index!
+      'heartsPlayed' => $this->heartsPlayed ? 'true' : 'false',
+      'currentHandPoints' => implode(', ', $this->currentHandPoints)
+    ];
   }
 
   /**

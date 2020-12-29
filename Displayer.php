@@ -117,6 +117,8 @@ class Displayer {
         $message = 'You cannot play hearts yet!'; break;
       case Game::MOVE_BAD_CARD:
         $message = 'Please play a card.'; break;
+      case Game::MOVE_EXPECTING_TWO_OF_CLUBS:
+        $message = 'Please play the two of clubs!'; break;
       default:
         throw new Exception('Unknown error code ' . htmlspecialchars($code));
     }

@@ -42,37 +42,19 @@ $displayer = new Displayer($game);
 $state = $game->getState();
 
 if ($state === GameState::HAND_START) {
-  // If this method didn't change the game state, this would open a door to
-  // cheating, because cards would be distributed upon every reload.
+  // If the execution in here didn't change the game state, this would open a door to cheating, because cards would be
+  // distributed upon every reload. playTillHuman() changes the state, so make sure to ALWAYS call it.
   $game->startNewHand();
   $start_player = $game->getCurrentRoundStarter();
+
   if ($start_player === Game::HUMAN_ID) {
     $displayer->draw('Must start with the two of clubs', true);
-  }
-  else {
+  } else {
     $msg = 'Player ' . ($start_player+1) . ' begins the hand.';
     $displayer->draw($msg, false);
-    $game->playTillHuman();
   }
+  $game->playTillHuman();
   save_game_to_session($game);
-}
-else if ($state === GameState::AWAITING_CLUBS) {
-  // Important to manually check here that we got the two of clubs
-  if (post_is_valid_card_format('card') && $_POST['card'] == Card::CLUBS . 2) {
-    $result = $game->processHumanMove($_POST['card']);
-    if ($result === Game::MOVE_OK) {
-      $nextRoundStarter = $game->playTillEnd();
-      $displayer->roundEndMessage($nextRoundStarter);
-      save_game_to_session($game);
-    } else {
-      // Throw an exception since we just checked that we got the two of clubs. We should never be in this clause!
-      throw new Exception('Game should have accepted two of Clubs!');
-    }
-  }
-  else {
-    $message = '<span class="error">Must start with the two of clubs!</span>';
-    $displayer->draw($message, true);
-  }
 }
 else if ($state === GameState::AWAITING_HUMAN) {
   if (post_is_valid_card_format('card')) {
@@ -81,12 +63,14 @@ else if ($state === GameState::AWAITING_HUMAN) {
       $nextRoundStarter = $game->playTillEnd();
       $displayer->roundEndMessage($nextRoundStarter);
       save_game_to_session($game);
-    }
-    else {
+    } else {
       $displayer->handleCardError($result);
     }
   } else {
-    $displayer->draw('Your turn.', true);
+    $message = $game->getNeedTwoOfClubs()
+      ? '<span class="error">Must start with the two of clubs!</span>'
+      : 'Your turn.';
+    $displayer->draw($message, true);
   }
 }
 else if ($state === GameState::ROUND_END) {

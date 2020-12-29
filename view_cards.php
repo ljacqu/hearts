@@ -4,7 +4,6 @@
  */
 error_reporting(E_ALL);
 session_start();
-require 'functions.php';
 require 'Card.php';
 require 'CardContainer.php';
 require 'Game.php';
@@ -43,6 +42,17 @@ foreach ($currentHandCards as $key => $playerCards) {
 HTML;
   }
   echo "</tr></table>\n";
+}
+
+if (isset($_GET['debug'])) {
+  $gameDebug = $game->getDebugValues();
+
+  echo "<h2>Internal state</h2>
+    State: {$gameDebug['state']}
+    <br />Hearts played: {$gameDebug['heartsPlayed']}
+    <br />Round starter: {$gameDebug['currentRoundStarter']} (1-based)
+    <br />Current hand points: {$gameDebug['currentHandPoints']}
+    <br />Need 2&clubs;: {$gameDebug['needTwoOfClubs']}";
 }
 
 /**

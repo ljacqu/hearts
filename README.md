@@ -16,10 +16,9 @@ States
 The `Game` class maintains a `$state` to keep track of what actions it
 expects. The table below shows the transitions from state to state.
 
-| old v / new > | HAND_START | AWAITING_CLUBS | AWAITING_HUMAN | ROUND_END | GAME_END |
-| ------------- | ---------- | -------------- | -------------- | --------- | -------- |
-| **HAND_START** | — | Continue button + human has 2♣ | Continue button + human NOT with 2♣ | — | — |
-| **AWAITING_CLUBS** | — | — | — | Human played 2♣ | — | — |
-| **AWAITING_HUMAN** | — | — | — | valid human card + more to play | valid human card + no more cards | — |
-| **ROUND_END** | No one with >= 100 points | — | — | — | — | Someone with >= 100 points |
-| **GAME_END** | — | — | — | — | — |
+| old v / new > | HAND_START | AWAITING_HUMAN | ROUND_END | GAME_END |
+| ------------- | ---------- | -------------- | --------- | -------- |
+| **HAND_START** | — | Continue button | — | — |
+| **AWAITING_HUMAN** | — | — | valid human card + more to play | valid human card + no more cards | — |
+| **ROUND_END** | No one with >= 100 points | — | — | — | Someone with >= 100 points |
+| **GAME_END** | — | — | — | — |

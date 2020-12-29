@@ -4,98 +4,47 @@
  */
 class Player implements IPlayer {
 
-  /** int[][] The cards the player has */
+  /** @var CardContainer The cards of this player. */
   private $cards;
 
-  function __construct() {
-    $this->emptyCardList();
-  }
-
-  /**
-   * Returns the card to play in the round.
-   *
-   * @param int $suit The suit of the current round (constant from Game)
-   * @param int[] $playedCards array of played cards, where the key corresponds to the
-   *  player ID and the entry is the suit number and the value, e.g.
-   *  $played_cards[1] = 211 means player 1 played J of spades.
-   * @param boolean $heartsPlayed whether hearts can be used to start a round
-   * @return string the card the player wants to play
-   */
-  function playCard($suit, array $playedCards, $heartsPlayed) {
-    if (count($playedCards) == 0) {
+  function playCard($suit, array $playedCards, $heartsPlayed, $handStart) {
+    if ($handStart) {
+      $card = Card::CLUBS . 2;
+    } else if (empty($playedCards)) {
       $card = $this->startRound($heartsPlayed);
-    } else if (!empty($this->cards[$suit])) {
+    } else if ($this->cards->hasCardForSuit($suit)) {
       $card = $this->selectBestSuitCard($playedCards, $suit);
     } else {
       $card = $this->getWorstCard();
     }
-    $this->removeCard($card);
+    $this->cards->removeCard($card);
     return $card;
   }
 
-  /**
-   * Takes the given cards for the start of a new round. Cards are expected to be valid and unique.
-   *
-   * @param $cards string[] the cards belonging to the user for a new round
-   */
-  function setCardsForNewRound(array $cards) {
-    $this->emptyCardList();
-    foreach ($cards as $card) {
-      $suit   = Card::getCardSuit($card);
-      $number = Card::getCardRank($card);
-      if (!isset($this->cards[$suit])) {
-        throw new Exception('Illegal suit ' . htmlspecialchars($suit) . '!');
-      }
-      $this->cards[$suit][] = $number;
-    }
-    $this->sortCards();
-  }
-
-  function processHandStart() {
-    $this->removeCard(Card::CLUBS . 2);
-  }
-
-  /**
-   * Resets the card list (empties all cards from list)
-   */
-  private function emptyCardList() {
-    $this->cards = [
-      Card::CLUBS    => [],
-      Card::DIAMONDS => [],
-      Card::SPADES   => [],
-      Card::HEARTS   => []
-    ];
-  }
-
-  /**
-   * Sorts the player's card list.
-   */
-  private function sortCards() {
-    foreach ($this->cards as &$cardsInSuit) {
-      natsort($cardsInSuit);
-    }
+  function processCardsForNewHand(array $cards) {
+    $this->cards = new CardContainer($cards);
   }
 
   /**
    * Finds the best same-suit card to play in a round and removes it from the
    * player's card list. Helper method of playCard().
    *
-   * @param $playedCards string[] the played cards
-   * @param $suit int the suit of the round
+   * @param string[] $playedCards the played cards
+   * @param int $suit the suit of the round
    * @return string the card to play
    */
   private function selectBestSuitCard($playedCards, $suit) {
     // Handle special cases with Spades.
-    if ($suit == Card::SPADES) {
-      if (in_array(Card::QUEEN, $this->cards[Card::SPADES])
+    if ($suit === Card::SPADES) {
+      if ($this->cards->hasCard(Card::SPADES . Card::QUEEN)
           && (in_array(Card::SPADES . Card::KING, $playedCards)
               || in_array(Card::SPADES . Card::ACE,  $playedCards))) {
         return Card::SPADES . Card::QUEEN;
       }
       else if (count($playedCards) === Game::N_OF_PLAYERS - 1
-               && end($this->cards[Card::SPADES]) >= Card::KING
+               && $this->cards->getMaxCardForSuit(Card::SPADES) >= Card::KING
                && !in_array(Card::SPADES . Card::QUEEN, $playedCards)) {
-        return Card::SPADES . end($this->cards[Card::SPADES]);
+        return Card::SPADES . $this->cards->getMaxCardForSuit(Card::SPADES);
       }
     }
 
@@ -108,7 +57,7 @@ class Player implements IPlayer {
     }
 
     $biggestPossible = 0;
-    foreach ($this->cards[$suit] as $card) {
+    foreach ($this->cards->getCards()[$suit] as $card) {
       if ($card < $biggestPlayed) {
         $biggestPossible = $card;
       } else {
@@ -122,26 +71,26 @@ class Player implements IPlayer {
       // No card is small enough...
       if (count($playedCards) === Game::N_OF_PLAYERS - 1) {
         // We're going to take the cards, so let's get rid of the biggest
-        return $suit . end($this->cards[$suit]);
+        return $suit . $this->cards->getMaxCardForSuit($suit);
       } else {
         // Let's hope someone else will have a bigger card
-        return $suit . reset($this->cards[$suit]);
+        return $suit . $this->cards->getMinCardForSuit($suit);
       }
     }
   }
 
   private function getWorstCard() {
     // TODO: Check that queen of spades was not played
-    if (!empty($this->cards[Card::SPADES])) {
+    if ($this->cards->hasCardForSuit(Card::SPADES)) {
       $card = false;
-      if (in_array(Card::QUEEN, $this->cards[Card::SPADES])) {
+      if ($this->cards->hasCard(Card::SPADES . Card::QUEEN)) {
         $card = Card::SPADES . Card::QUEEN;
-      } else if (in_array(Card::ACE, $this->cards[Card::SPADES])) {
+      } else if ($this->cards->hasCard(Card::SPADES . Card::ACE)) {
         $card = Card::SPADES . Card::ACE;
-      } else if (in_array(Card::KING, $this->cards[Card::SPADES])) {
+      } else if ($this->cards->hasCard(Card::SPADES . Card::KING)) {
         $card = Card::SPADES . Card::KING;
-      } else if (end($this->cards[Card::SPADES]) > 7) {
-        $card = Card::SPADES . end($this->cards[Card::SPADES]); // TODO: What does this do?
+      } else if ($this->cards->getMaxCardForSuit(Card::SPADES) > 7) {
+        $card = Card::SPADES . $this->cards->getMaxCardForSuit(Card::SPADES); // TODO: What does this do?
       }
       if ($card) {
         return $card;
@@ -150,7 +99,7 @@ class Player implements IPlayer {
 
     $max = 0;
     $maxSuit = 0;
-    foreach ($this->cards as $suit => $cardsOfSuit) {
+    foreach ($this->cards->getCards() as $suit => $cardsOfSuit) {
       $value = end($cardsOfSuit);
       if ($value > $max) {
         $max = $value;
@@ -163,15 +112,13 @@ class Player implements IPlayer {
   /**
    * Choose card to start a new round
    * @param bool $heartsPlayed Whether Hearts have already been played
-   * @param bool $spadesQueenPlayed Whether the Queen of Spades has been
-   *  played yet.
    * @return string Card ID the player wants to use
    */
   private function startRound($heartsPlayed) {
     $minCard = Card::ACE + 1;
     $minCardSuit = -1;
 
-    foreach ($this->cards as $suit => $cardsOfSuit) {
+    foreach ($this->cards->getCards() as $suit => $cardsOfSuit) {
       if (($suit === Card::HEARTS && !$heartsPlayed) || empty($cardsOfSuit)) {
         continue;
       }
@@ -186,31 +133,11 @@ class Player implements IPlayer {
       return $minCardSuit . $minCard;
     }
 
-    if (count($this->cards[Card::HEARTS]) > 1) {
-      $minCard = reset($this->cards[Card::HEARTS]);
-      return Card::HEARTS . $minCard;
+    if ($this->cards->hasCardForSuit(Card::HEARTS)) {
+      return Card::HEARTS . $this->cards->getMinCardForSuit(Card::HEARTS);
     } else {
       var_dump($this->cards);
       throw new Exception('Error in startRound; did not expect empty card list');
     }
-  }
-
-  /**
-   * Removes the given card from the player, if available.
-   *
-   * @param string $card the composed card code (suit + rank)
-   * @return boolean true if card was removed, false if the player did not have it
-   */
-  function removeCard($card) {
-    $suit  = Card::getCardSuit($card);
-    $value = Card::getCardRank($card);
-
-    foreach ($this->cards[$suit] as $key => $card) {
-      if ($card == $value) {
-        unset($this->cards[$suit][$key]);
-        return true;
-      }
-    }
-    return false;
   }
 }
