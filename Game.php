@@ -20,7 +20,7 @@ class Game {
   /** @var int Number of the current hand. */
   private $handNumber;
 
-  /** @var Player[] Contains the players of the game. */
+  /** @var IPlayer[] Contains the players of the game. */
   private $players;
 
   /** @var int[][] with hand and player ID as keys and subkeys */
@@ -39,13 +39,17 @@ class Game {
 
   private $currentRoundStarter;
 
+  /** @var CardContainer[] Cards of the current hand by player index. */
+  private $currentHandCards;
+  
+
   /** @var int[] Points in the current hand by player. */
   private $currentHandPoints;
 
   function __construct() {
     $this->handNumber = 0;
-    $this->points  = array();
-    $this->players = array();
+    $this->points  = [];
+    $this->players = [];
     for ($i = 0; $i < self::N_OF_PLAYERS; ++$i) {
       $this->players[] = new Player();
     }
@@ -53,17 +57,18 @@ class Game {
   }
 
   /**
-   * Return the ID of the player who possesses the two of clubs.
+   * Returns the ID of the player who possesses the two of clubs.
    *
    * @return int player ID of owner of two of clubs card
    */
   private function findTwoOfClubsOwner() {
-    for ($i = 0; $i < self::N_OF_PLAYERS; ++$i) {
-      if ($this->players[$i]->hasCard(Card::CLUBS . '2')) {
-        return $i;
+    $twoOfClubs = Card::CLUBS . 2;
+    foreach ($this->currentHandCards as $index => $playerCardContainer) {
+      if ($playerCardContainer->hasCard($twoOfClubs)) {
+        return $index;
       }
     }
-    var_dump($this->players);
+    var_dump($this->currentHandCards);
     throw new Exception('No player has two of clubs!');
   }
 
@@ -73,7 +78,7 @@ class Game {
    * @return int Game code to signal the success or the precise error of the move the human player wants to make
    */
   function processHumanMove($card) {
-    if (!is_scalar($card) || strlen($card) < 2 || !$this->players[self::HUMAN_ID]->hasCard($card)) {
+    if (!is_scalar($card) || strlen($card) < 2 || !$this->currentHandCards[self::HUMAN_ID]->hasCard($card)) {
       return self::MOVE_BAD_CARD;
     }
 
@@ -89,23 +94,22 @@ class Game {
   private function processHumanSuit($card) {
     $suit = Card::getCardSuit($card);
 
-    if (count($this->currentRoundCards) > 0) {
-      if ($suit == $this->currentRoundSuit
-        || !$this->players[self::HUMAN_ID]->hasCardsForSuit($this->currentRoundSuit))
-      {
+    if (!empty($this->currentRoundCards)) {
+      if ($suit === $this->currentRoundSuit
+          || !$this->currentHandCards[self::HUMAN_ID]->hasCardForSuit($this->currentRoundSuit)) {
         return self::MOVE_OK;
       } else {
         return self::MOVE_BAD_SUIT;
       }
     } else {
       // Human starts the hand
-      if ($suit == Card::HEARTS && !$this->heartsPlayed) {
+      if ($suit === Card::HEARTS && !$this->heartsPlayed) {
         // Accept hearts if human has no other cards
-        return (!$this->players[self::HUMAN_ID]->hasCardsForSuit(Card::CLUBS)
-           && !$this->players[self::HUMAN_ID]->hasCardsForSuit(Card::DIAMONDS)
-           && !$this->players[self::HUMAN_ID]->hasCardsForSuit(Card::SPADES))
-        ? self::MOVE_OK
-        : self::MOVE_NO_HEARTS;
+        return (!$this->currentHandCards[self::HUMAN_ID]->hasCardForSuit(Card::CLUBS)
+            && !$this->currentHandCards[self::HUMAN_ID]->hasCardForSuit(Card::DIAMONDS)
+            && !$this->currentHandCards[self::HUMAN_ID]->hasCardForSuit(Card::SPADES))
+          ? self::MOVE_OK
+          : self::MOVE_NO_HEARTS;
       }
       return self::MOVE_OK;
     }
@@ -113,7 +117,7 @@ class Game {
 
   private function registerHumanMove($card) {
     $this->currentRoundCards[self::HUMAN_ID] = $card;
-    $this->players[self::HUMAN_ID]->removeCard($card);
+    $this->currentHandCards[self::HUMAN_ID]->removeCard($card);
     if (count($this->currentRoundCards) === 1) {
       $this->currentRoundSuit = Card::getCardSuit($card);
     }
@@ -122,23 +126,25 @@ class Game {
   /**
    * Distributes the cards to players randomly.
    */
-  function distributeCards() {
+  private function distributeCards() {
     $deck = $this->initializeDeck();
     shuffle($deck);
 
+    $this->currentHandCards = [];
     $cardsPerPlayer = floor(count($deck) / self::N_OF_PLAYERS);
     foreach ($this->players as $index => $player) {
       $newCards = array_slice($deck, $index * $cardsPerPlayer, $cardsPerPlayer);
+      $this->currentHandCards[$index] = new CardContainer($newCards);
       $player->setCardsForNewRound($newCards);
     }
-    $this->setupNewHand();
   }
 
   function playTillHuman() {
     $this->currentRoundCards = array();
     $playerId = $this->currentRoundStarter;
-    if ($this->state == GameState::HAND_START && $playerId != self::HUMAN_ID) {
-      $this->players[$playerId]->removeCard(Card::CLUBS . 2);
+    if ($this->state === GameState::HAND_START && $playerId !== self::HUMAN_ID) {
+      $this->players[$playerId]->processHandStart(); // todo expect this to come from `playCard` instead?
+      $this->currentHandCards[$playerId]->removeCard(Card::CLUBS . 2);
       $this->currentRoundCards[$playerId] = Card::CLUBS . 2;
       $playerId = $this->nextPlayer($playerId);
     }
@@ -146,6 +152,7 @@ class Game {
     while ($playerId != self::HUMAN_ID) {
       $this->currentRoundCards[$playerId] = $this->players[$playerId]->playCard(
         $this->currentRoundSuit, $this->currentRoundCards, $this->heartsPlayed);
+      $this->currentHandCards[$playerId]->removeCard($this->currentRoundCards[$playerId]); // todo validate
       if (count($this->currentRoundCards) === 1) {
         $this->currentRoundSuit = Card::getCardSuit(reset($this->currentRoundCards));
       }
@@ -163,6 +170,7 @@ class Game {
       }
       $this->currentRoundCards[$playerId] = $this->players[$playerId]->playCard(
         $this->currentRoundSuit, $this->currentRoundCards, $this->heartsPlayed);
+      $this->currentHandCards[$playerId]->removeCard($this->currentRoundCards[$playerId]); // todo validate
       $playerId = $this->nextPlayer($playerId);
     }
 
@@ -205,7 +213,7 @@ class Game {
     $this->currentRoundStarter = $nextStarter;
 
     $this->updateHeartsPlayed();
-    if ($this->players[0]->hasEmptyCardList()) {
+    if (!$this->currentHandCards[0]->hasAnyCard()) {
       $this->state = $this->endCurrentHand();
       return null;
     } else {
@@ -215,10 +223,9 @@ class Game {
   }
 
   private function endCurrentHand() {
-    if (max($this->currentHandPoints) == 26) {
+    if (max($this->currentHandPoints) === 26) {
       foreach ($this->currentHandPoints as &$playerPoints) {
-        if ($playerPoints == 26) $playerPoints =  0;
-        else                     $playerPoints = 26;
+        $playerPoints = $playerPoints === 26 ? 0 : 26;
       }
     }
     $this->points[] = $this->currentHandPoints;
@@ -235,8 +242,15 @@ class Game {
   }
 
   function startNewHand() {
+    $this->state = GameState::HAND_START;
     $this->distributeCards();
+
     ++$this->handNumber;
+    $this->currentHandPoints  = array();
+    for ($i = 0; $i < self::N_OF_PLAYERS; ++$i) {
+      $this->currentHandPoints[] = 0;
+    }
+
     $this->currentRoundSuit = Card::CLUBS;
     $this->heartsPlayed = false;
     $this->currentRoundCards = array();
@@ -262,19 +276,6 @@ class Game {
   }
 
   /**
-   * Called at the end of distributeCards()
-   */
-  private function setupNewHand() {
-    $this->state = GameState::HAND_START;
-    $this->currentRoundStarter = $this->findTwoOfClubsOwner();
-    $this->currentRoundSuit    = Card::CLUBS;
-    $this->currentHandPoints  = array();
-    for ($i = 0; $i < self::N_OF_PLAYERS; ++$i) {
-      $this->currentHandPoints[] = 0;
-    }
-  }
-
-  /**
    * Initializes a full deck of cards.
    *
    * @return string[] all cards, where the first character is the number for the suit, and the
@@ -295,7 +296,7 @@ class Game {
   }
 
   function getHumanCards() {
-    return $this->players[self::HUMAN_ID]->getCards();
+    return $this->currentHandCards[self::HUMAN_ID];
   }
   function getState() {
     return $this->state;
@@ -312,11 +313,11 @@ class Game {
   function getHandNumber() {
     return $this->handNumber;
   }
+
   /**
-   * Debug: returns the Player objects of the current game.
-   * @return Player[] The players of the game
+   * @return CardContainer[]
    */
-  function getPlayers() {
-    return $this->players;
+  public function getCurrentHandCards() {
+    return $this->currentHandCards;
   }
 }

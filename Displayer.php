@@ -42,7 +42,7 @@ class Displayer {
     $cards = $this->game->getHumanCards();
 
     $output = '';
-    foreach ($cards as $suit => $cardsOfSuit) {
+    foreach ($cards->getCards() as $suit => $cardsOfSuit) {
       foreach ($cardsOfSuit as $card) {
         $output .= "\n" . $this->prepareCardCell($htmlTemplate, $suit.$card);
       }

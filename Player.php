@@ -2,24 +2,13 @@
 /**
  * Contains the data of a player in the game.
  */
-class Player {
+class Player implements IPlayer {
 
   /** int[][] The cards the player has */
   private $cards;
 
   function __construct() {
     $this->emptyCardList();
-  }
-
-  function getCards() {
-    return $this->cards;
-  }
-
-  function hasEmptyCardList() {
-    foreach ($this->cards as $list) {
-      if (!empty($list)) return false;
-    }
-    return true;
   }
 
   /**
@@ -49,7 +38,7 @@ class Player {
    *
    * @param $cards string[] the cards belonging to the user for a new round
    */
-  function setCardsForNewRound($cards) {
+  function setCardsForNewRound(array $cards) {
     $this->emptyCardList();
     foreach ($cards as $card) {
       $suit   = Card::getCardSuit($card);
@@ -62,20 +51,8 @@ class Player {
     $this->sortCards();
   }
 
-  /**
-   * Returns if the player has the given card.
-   *
-   * @param $card string card to check
-   * @return bool true if player has the specified card, false otherwise
-   */
-  function hasCard($card) {
-    $suit   = Card::getCardSuit($card);
-    $number = Card::getCardRank($card);
-    return isset($this->cards[$suit]) && in_array($number, $this->cards[$suit]);
-  }
-
-  function hasCardsForSuit($suit) {
-    return isset($this->cards[$suit]) && count($this->cards[$suit]) > 0;
+  function processHandStart() {
+    $this->removeCard(Card::CLUBS . 2);
   }
 
   /**

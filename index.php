@@ -6,8 +6,10 @@ $start = microtime(true);
 
 require 'functions.php';
 require 'Card.php';
+require 'CardContainer.php';
 require 'GameState.php';
 require 'Game.php';
+require 'IPlayer.php';
 require 'Player.php';
 require 'Displayer.php';
 
@@ -63,8 +65,7 @@ else if ($state === GameState::AWAITING_CLUBS) {
       $displayer->roundEndMessage($nextRoundStarter);
       save_game_to_session($game);
     } else {
-      // Throw an exception since we just checked that we got
-      // the two of clubs. We should never be in this clause!
+      // Throw an exception since we just checked that we got the two of clubs. We should never be in this clause!
       throw new Exception('Game should have accepted two of Clubs!');
     }
   }

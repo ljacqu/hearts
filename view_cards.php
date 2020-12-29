@@ -6,7 +6,9 @@ error_reporting(E_ALL);
 session_start();
 require 'functions.php';
 require 'Card.php';
+require 'CardContainer.php';
 require 'Game.php';
+require 'IPlayer.php';
 require 'Player.php';
 require 'Displayer.php';
 
@@ -25,11 +27,11 @@ echo <<<HTML
 HTML;
 
 $displayer = new Displayer($game);
-$players = $game->getPlayers();
-foreach ($players as $key => $player) {
+$currentHandCards = $game->getCurrentHandCards();
+foreach ($currentHandCards as $key => $playerCards) {
   echo '<h1>Player ' . ($key + 1) . '</h1>';
   echo '<table class="cards"><tr>';
-  $cards = array_flatten($player->getCards());
+  $cards = collectCardsAsCardCodes($playerCards);
 
   foreach ($cards as $card) {
     $html_data = $displayer->getHtmlCardDetails($card);
@@ -43,13 +45,16 @@ HTML;
   echo "</tr></table>\n";
 }
 
-
-function array_flatten($card_list) {
-  $flat_arr = [];
-  foreach ($card_list as $suit => $cards_of_suit) {
-    $flat_arr = array_merge($flat_arr, array_map(function ($entry) use ($suit) {
-      return $suit . $entry;
-    }, $cards_of_suit));
+/**
+ * @param $cardContainer CardContainer
+ * @return string[]
+ */
+function collectCardsAsCardCodes($cardContainer) {
+  $result = [];
+  foreach ($cardContainer->getCards() as $suit => $ranks) {
+    $result = array_merge($result, array_map(function ($rank) use ($suit) {
+      return $suit . $rank;
+    }, $ranks));
   }
-  return $flat_arr;
+  return $result;
 }
