@@ -28,12 +28,7 @@ class CardContainer {
    * @return CardContainer new container with the given cards
    */
   static function fromCardCodes($cardCodes) {
-    $cards = [
-      Card::CLUBS    => [],
-      Card::DIAMONDS => [],
-      Card::SPADES   => [],
-      Card::HEARTS   => []
-    ];
+    $cards = array_fill_keys(Card::getAllSuits(), []);
 
     foreach ($cardCodes as $code) {
       $suit = Card::getCardSuit($code);

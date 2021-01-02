@@ -60,7 +60,7 @@ class Game {
     $this->points  = [];
     $this->players = [];
     for ($i = 0; $i < self::N_OF_PLAYERS; ++$i) {
-      $this->players[] = $i === self::HUMAN_ID ? new HumanPlayer() : new StandardPlayer();
+      $this->players[] = $i === self::HUMAN_ID ? new HumanPlayer() : new AdvancedPlayer($i);
     }
     $this->state = GameState::HAND_START;
   }

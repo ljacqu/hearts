@@ -55,4 +55,11 @@ final class Card {
   static function getCardRank($composedCardCode) {
     return (int) substr($composedCardCode, 1);
   }
+
+  /**
+   * @return int[] all available suits as {@link Card} constants
+   */
+  static function getAllSuits() {
+    return range(Card::CLUBS, Card::HEARTS);
+  }
 }

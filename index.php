@@ -11,6 +11,7 @@ require 'GameState.php';
 require 'Game.php';
 require './player/Player.php';
 require './player/StandardPlayer.php';
+require './player/AdvancedPlayer.php';
 require './player/HumanPlayer.php';
 require 'Displayer.php';
 
