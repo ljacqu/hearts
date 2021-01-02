@@ -1,8 +1,8 @@
 <?php
 /**
- * Contains the data of a player in the game.
+ * Default implementation of a computer player.
  */
-class Player implements IPlayer {
+class StandardPlayer implements Player {
 
   /** @var CardContainer The cards of this player. */
   private $cards;

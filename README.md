@@ -19,6 +19,6 @@ expects. The table below shows the transitions from state to state.
 | old v / new > | HAND_START | AWAITING_HUMAN | ROUND_END | GAME_END |
 | ------------- | ---------- | -------------- | --------- | -------- |
 | **HAND_START** | — | Continue button | — | — |
-| **AWAITING_HUMAN** | valid card + no more cards in hand | — | valid card + more cards in hand | valid card + no more cards in hand + someone has over >= 100 | — |
+| **AWAITING_HUMAN** | valid card + no more cards in hand | — | valid card + more cards in hand | valid card + no more cards in hand + someone has >= 100 pts | — |
 | **ROUND_END** | No one with >= 100 points | — | — | — |
 | **GAME_END** | — | — | — | — |

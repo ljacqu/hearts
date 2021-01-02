@@ -7,8 +7,9 @@ session_start();
 require 'Card.php';
 require 'CardContainer.php';
 require 'Game.php';
-require 'IPlayer.php';
-require 'Player.php';
+require './player/Player.php';
+require './player/StandardPlayer.php';
+require './player/HumanPlayer.php';
 require 'Displayer.php';
 
 if (isset($_SESSION['game'])) {

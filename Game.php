@@ -22,7 +22,7 @@ class Game {
   /** @var int Number of the current hand. */
   private $handNumber;
 
-  /** @var IPlayer[] Contains the players of the game. */
+  /** @var Player[] Contains the players of the game. */
   private $players;
 
   /** @var int[][] Points with hand and player ID as keys and subkeys. */
@@ -60,7 +60,7 @@ class Game {
     $this->points  = [];
     $this->players = [];
     for ($i = 0; $i < self::N_OF_PLAYERS; ++$i) {
-      $this->players[] = new Player();
+      $this->players[] = $i === self::HUMAN_ID ? new HumanPlayer() : new StandardPlayer();
     }
     $this->state = GameState::HAND_START;
   }

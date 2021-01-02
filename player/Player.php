@@ -3,7 +3,7 @@
 /**
  * A player in the hearts game.
  */
-interface IPlayer {
+interface Player {
 
   // TODO might make sense to pass in an immutable card container?
 
