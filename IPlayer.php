@@ -1,19 +1,43 @@
 <?php
 
+/**
+ * A player in the hearts game.
+ */
 interface IPlayer {
 
+  // TODO might make sense to pass in an immutable card container?
+
   /**
-   * Returns the card to play in the round.
+   * Called when the player is expected to start the hand, i.e. must return the two of clubs.
    *
-   * @param int $suit The suit of the current round (constant from Game)
-   * @param int[] $playedCards array of played cards, where the key corresponds to the
-   *  player ID and the entry is the suit number and the value, e.g.
-   *  $played_cards[1] = 211 means player 1 played J of spades.
-   * @param boolean $heartsPlayed whether hearts can be used to start a round
-   * @param boolean $handStart true if two of clubs are expected
-   * @return string the card the player wants to play
+   * @return string code for the two of clubs
    */
-  function playCard($suit, array $playedCards, $heartsPlayed, $handStart); // todo create param object
+  function startHand();
+
+  /**
+   * Called when the player has to provide a card to start a new round.
+   *
+   * @param boolean $heartsPlayed true if hearts can be used to start the new round, false otherwise
+   * @return string code of the card to play
+   */
+  function startRound($heartsPlayed);
+
+  /**
+   * Called when the player has to provide a card for an ongoing round (i.e. the player did not start the round).
+   *
+   * @param int $suit the suit of the current hand ({@link Card} constant)
+   * @param string[] $playedCards played cards by player id
+   * @return string code of the card this player wants to play
+   */
+  function playInRound($suit, array $playedCards);
+
+  /**
+   * Notifies the player of the round on completion.
+   *
+   * @param int $suit the suit the hand was in ({@link Card} constant)
+   * @param string[] $playedCards all played cards (key is player id)
+   */
+  function processRound($suit, array $playedCards);
 
   /**
    * Takes the given cards for the start of a new round. Cards are expected to be valid and unique.

@@ -161,24 +161,7 @@ class Game {
     $playerId = $this->currentRoundStarter;
 
     while ($playerId != self::HUMAN_ID) {
-      if (isset($this->currentRoundCards[$playerId])) {
-        var_dump($this->currentRoundCards);
-        throw new Exception("Found card for $playerId");
-      }
-
-      $card = $this->players[$playerId]->playCard($this->currentRoundSuit, $this->currentRoundCards,
-        $this->heartsPlayed, $this->needTwoOfClubs);
-      $cardMoveCode = $this->validateCardPlay($this->currentHandCards[$playerId], $card);
-      if ($cardMoveCode !== Game::MOVE_OK) {
-        throw new Exception(
-          "Player $playerId played card '$card' which resulted in validation code $cardMoveCode");
-      }
-
-      $this->currentRoundCards[$playerId] = $card;
-      $this->currentHandCards[$playerId]->removeCard($card);
-      if (count($this->currentRoundCards) === 1) {
-        $this->currentRoundSuit = Card::getCardSuit(reset($this->currentRoundCards));
-      }
+      $this->getAndRegisterCardFromPlayer($playerId);
       $playerId = $this->nextPlayer($playerId);
     }
     $this->state = GameState::AWAITING_HUMAN;
@@ -187,31 +170,54 @@ class Game {
   function playTillEnd() {
     $playerId = $this->nextPlayer(self::HUMAN_ID);
     while ($playerId != $this->currentRoundStarter) {
-      // todo remove duplication
-      if (isset($this->currentRoundCards[$playerId])) {
-        var_dump($this->currentRoundCards);
-        throw new Exception("Found card for $playerId");
-      }
-
-      $card = $this->players[$playerId]->playCard($this->currentRoundSuit, $this->currentRoundCards,
-        $this->heartsPlayed, $this->needTwoOfClubs);
-      $cardMoveCode = $this->validateCardPlay($this->currentHandCards[$playerId], $card);
-      if ($cardMoveCode !== Game::MOVE_OK) {
-        throw new Exception(
-          "Player $playerId played card '$card' which resulted in validation code $cardMoveCode");
-      }
-
-      $this->currentRoundCards[$playerId] = $card;
-      $this->currentHandCards[$playerId]->removeCard($card);
+      $this->getAndRegisterCardFromPlayer($playerId);
       $playerId = $this->nextPlayer($playerId);
     }
 
-    if (count($this->currentRoundCards) != self::N_OF_PLAYERS) {
+    if (count($this->currentRoundCards) !== self::N_OF_PLAYERS) {
       var_dump($this->currentRoundCards);
       throw new Exception("Registered cards is not equals to the number of players!");
     }
+    foreach ($this->players as $player) {
+      $player->processRound($this->currentRoundSuit, $this->currentRoundCards);
+    }
+
     $nextStarter = $this->prepareNextRound();
     return $nextStarter;
+  }
+
+  /**
+   * Calls the appropriate method on the player to get his card. Validates the card choice and
+   * adds it as his card to {@link currentHandCards}. Sets also the current hand suit if
+   * it is the start of the hand.
+   *
+   * @param int $playerId ID of the player that should play
+   */
+  private function getAndRegisterCardFromPlayer($playerId) {
+    if (isset($this->currentRoundCards[$playerId])) {
+      var_dump($this->currentRoundCards);
+      throw new Exception("Unexpectedly found card for $playerId");
+    }
+
+    $player = $this->players[$playerId];
+    if (!empty($this->currentRoundCards)) {
+      $card = $player->playInRound($this->currentRoundSuit, $this->currentRoundCards);
+    } else if ($this->needTwoOfClubs) {
+      $card = $player->startHand();
+    } else {
+      $card = $player->startRound($this->heartsPlayed);
+    }
+    $cardMoveCode = $this->validateCardPlay($this->currentHandCards[$playerId], $card);
+    if ($cardMoveCode !== Game::MOVE_OK) {
+      throw new Exception(
+        "Player $playerId played card '$card' which resulted in validation code $cardMoveCode");
+    }
+
+    $this->currentRoundCards[$playerId] = $card;
+    $this->currentHandCards[$playerId]->removeCard($card);
+    if (count($this->currentRoundCards) === 1) {
+      $this->currentRoundSuit = Card::getCardSuit(reset($this->currentRoundCards));
+    }
   }
 
   private function nextPlayer($i) {
@@ -219,11 +225,11 @@ class Game {
   }
 
   /**
-   * Called at the end of a round: prepare for the next round, i.e. clear the
-   * played cards, count points, determine the next player, set the game state.
-   * Note: Do not clear $this->currentRoundCards here but empty it at the start
-   *  of playTillHuman. This way, the Displayer class can still access and
-   *  display the cards of the round to the human.
+   * Called at the end of a round: prepare for the next round, i.e. count points, determine the next player,
+   * set the appropriate game state.
+   * <p>
+   * Note: Do not clear $this->currentRoundCards here but empty it at the start of {@link playTillHuman()}. This way,
+   * the Displayer class can still access and display the cards of the round to the human.
    *
    * @return int the ID of the player who has to start the next round; null if the hand has been completed.
    */
@@ -244,7 +250,7 @@ class Game {
     $this->currentRoundStarter = $nextStarter;
 
     $this->updateHeartsPlayed();
-    if ($this->currentHandCards[0]->isEmpty()) {
+    if ($this->currentHandCards[0]->isEmpty()) { // End of hand
       $this->state = $this->endCurrentHand();
       return null;
     } else {
@@ -359,7 +365,7 @@ class Game {
   /**
    * @return CardContainer[]
    */
-  public function getCurrentHandCards() {
+  function getCurrentHandCards() {
     return $this->currentHandCards;
   }
 }

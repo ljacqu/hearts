@@ -7,12 +7,23 @@ class Player implements IPlayer {
   /** @var CardContainer The cards of this player. */
   private $cards;
 
-  function playCard($suit, array $playedCards, $heartsPlayed, $handStart) {
-    if ($handStart) {
-      $card = Card::CLUBS . 2;
-    } else if (empty($playedCards)) {
-      $card = $this->startRound($heartsPlayed);
-    } else if ($this->cards->hasCardForSuit($suit)) {
+  /** @var boolean Keeps track of whether the queen of spades has been played in the current hand. */
+  private $queenOfSpadesPlayed;
+
+  function startHand() {
+    $twoOfClubs = Card::CLUBS . 2;
+    $this->cards->removeCard($twoOfClubs);
+    return $twoOfClubs;
+  }
+
+  function startRound($heartsPlayed) {
+    $card = $this->selectCardForRoundStart($heartsPlayed);
+    $this->cards->removeCard($card);
+    return $card;
+  }
+
+  function playInRound($suit, array $playedCards) {
+    if ($this->cards->hasCardForSuit($suit)) {
       $card = $this->selectBestSuitCard($playedCards, $suit);
     } else {
       $card = $this->getWorstCard();
@@ -21,8 +32,15 @@ class Player implements IPlayer {
     return $card;
   }
 
+  function processRound($suit, array $playedCards) {
+    if (!$this->queenOfSpadesPlayed) {
+      $this->queenOfSpadesPlayed = in_array(Card::SPADES . Card::QUEEN, $playedCards);
+    }
+  }
+
   function processCardsForNewHand(array $cards) {
     $this->cards = new CardContainer($cards);
+    $this->queenOfSpadesPlayed = false;
   }
 
   /**
@@ -35,7 +53,7 @@ class Player implements IPlayer {
    */
   private function selectBestSuitCard($playedCards, $suit) {
     // Handle special cases with Spades.
-    if ($suit === Card::SPADES) {
+    if ($suit === Card::SPADES && !$this->queenOfSpadesPlayed) {
       if ($this->cards->hasCard(Card::SPADES . Card::QUEEN)
           && (in_array(Card::SPADES . Card::KING, $playedCards)
               || in_array(Card::SPADES . Card::ACE,  $playedCards))) {
@@ -80,8 +98,7 @@ class Player implements IPlayer {
   }
 
   private function getWorstCard() {
-    // TODO: Check that queen of spades was not played
-    if ($this->cards->hasCardForSuit(Card::SPADES)) {
+    if (!$this->queenOfSpadesPlayed && $this->cards->hasCardForSuit(Card::SPADES)) {
       $card = false;
       if ($this->cards->hasCard(Card::SPADES . Card::QUEEN)) {
         $card = Card::SPADES . Card::QUEEN;
@@ -89,8 +106,6 @@ class Player implements IPlayer {
         $card = Card::SPADES . Card::ACE;
       } else if ($this->cards->hasCard(Card::SPADES . Card::KING)) {
         $card = Card::SPADES . Card::KING;
-      } else if ($this->cards->getMaxCardForSuit(Card::SPADES) > 7) {
-        $card = Card::SPADES . $this->cards->getMaxCardForSuit(Card::SPADES); // TODO: What does this do?
       }
       if ($card) {
         return $card;
@@ -110,11 +125,12 @@ class Player implements IPlayer {
   }
 
   /**
-   * Choose card to start a new round
-   * @param bool $heartsPlayed Whether Hearts have already been played
-   * @return string Card ID the player wants to use
+   * Chooses a card to start a new round.
+   *
+   * @param boolean $heartsPlayed whether Hearts have already been played
+   * @return string card ID the player wants to use
    */
-  private function startRound($heartsPlayed) {
+  private function selectCardForRoundStart($heartsPlayed) {
     $minCard = Card::ACE + 1;
     $minCardSuit = -1;
 

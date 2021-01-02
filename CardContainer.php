@@ -69,7 +69,7 @@ class CardContainer {
    * Returns the smallest available rank for the given suit.
    *
    * @param int $suit the suit to look for (Card constant)
-   * @return int the smallest present rank with the given suit
+   * @return int|false the smallest present rank with the given suit, false if there are no cards for the given suit
    */
   function getMinCardForSuit($suit) {
     return reset($this->cards[$suit]);
