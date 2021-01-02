@@ -15,10 +15,20 @@ class CardContainer {
   /**
    * Creates a card container with the given cards.
    *
-   * @param string[] $cardCodes the codes (suit + rank) of the cards this container should contain
+   * @param int[][] $cards internal representation of the cards (by suit, values ordered)
    */
-  function __construct($cardCodes) {
-    $this->cards = [
+  private function __construct($cards) {
+    $this->cards = $cards;
+  }
+
+  /**
+   * Creates a card container for the given card codes (composed of suit + rank).
+   *
+   * @param string[] $cardCodes the card codes the container should contain
+   * @return CardContainer new container with the given cards
+   */
+  static function fromCardCodes($cardCodes) {
+    $cards = [
       Card::CLUBS    => [],
       Card::DIAMONDS => [],
       Card::SPADES   => [],
@@ -27,11 +37,20 @@ class CardContainer {
 
     foreach ($cardCodes as $code) {
       $suit = Card::getCardSuit($code);
-      $this->cards[$suit][] = Card::getCardRank($code);
+      $cards[$suit][] = Card::getCardRank($code);
     }
-    foreach ($this->cards as &$cardsInSuit) {
+    foreach ($cards as &$cardsInSuit) {
       natsort($cardsInSuit);
     }
+
+    return new CardContainer($cards);
+  }
+
+  /**
+   * @return CardContainer a copy of this container
+   */
+  function createCopy() {
+    return new CardContainer($this->cards);
   }
 
   /**

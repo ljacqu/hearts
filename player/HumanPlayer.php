@@ -6,15 +6,15 @@
  */
 class HumanPlayer implements Player {
 
-  function startHand() {
+  function startHand($playerCards) {
     throw new Exception('Should never be called');
   }
 
-  function startRound($heartsPlayed) {
+  function startRound($playerCards, $heartsPlayed) {
     throw new Exception('Should never be called');
   }
 
-  function playInRound($suit, array $playedCards) {
+  function playInRound($playerCards, $suit, array $playedCards) {
     throw new Exception('Should never be called');
   }
 

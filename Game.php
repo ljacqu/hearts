@@ -151,7 +151,7 @@ class Game {
     $cardsPerPlayer = floor(count($deck) / self::N_OF_PLAYERS);
     foreach ($this->players as $index => $player) {
       $newCards = array_slice($deck, $index * $cardsPerPlayer, $cardsPerPlayer);
-      $this->currentHandCards[$index] = new CardContainer($newCards);
+      $this->currentHandCards[$index] = CardContainer::fromCardCodes($newCards);
       $player->processCardsForNewHand($newCards);
     }
   }
@@ -200,12 +200,13 @@ class Game {
     }
 
     $player = $this->players[$playerId];
+    $playerCardsCopy = $this->currentHandCards[$playerId]->createCopy();
     if (!empty($this->currentRoundCards)) {
-      $card = $player->playInRound($this->currentRoundSuit, $this->currentRoundCards);
+      $card = $player->playInRound($playerCardsCopy, $this->currentRoundSuit, $this->currentRoundCards);
     } else if ($this->needTwoOfClubs) {
-      $card = $player->startHand();
+      $card = $player->startHand($playerCardsCopy);
     } else {
-      $card = $player->startRound($this->heartsPlayed);
+      $card = $player->startRound($playerCardsCopy, $this->heartsPlayed);
     }
     $cardMoveCode = $this->validateCardPlay($this->currentHandCards[$playerId], $card);
     if ($cardMoveCode !== Game::MOVE_OK) {

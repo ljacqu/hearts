@@ -4,32 +4,23 @@
  */
 class StandardPlayer implements Player {
 
-  /** @var CardContainer The cards of this player. */
-  private $cards;
-
   /** @var boolean Keeps track of whether the queen of spades has been played in the current hand. */
   private $queenOfSpadesPlayed;
 
-  function startHand() {
-    $twoOfClubs = Card::CLUBS . 2;
-    $this->cards->removeCard($twoOfClubs);
-    return $twoOfClubs;
+  function startHand($playerCards) {
+    return Card::CLUBS . 2;
   }
 
-  function startRound($heartsPlayed) {
-    $card = $this->selectCardForRoundStart($heartsPlayed);
-    $this->cards->removeCard($card);
-    return $card;
+  function startRound($playerCards, $heartsPlayed) {
+    return $this->selectCardForRoundStart($playerCards, $heartsPlayed);
   }
 
-  function playInRound($suit, array $playedCards) {
-    if ($this->cards->hasCardForSuit($suit)) {
-      $card = $this->selectBestSuitCard($playedCards, $suit);
+  function playInRound($playerCards, $suit, array $playedCards) {
+    if ($playerCards->hasCardForSuit($suit)) {
+      return $this->selectBestSuitCard($playerCards, $suit, $playedCards);
     } else {
-      $card = $this->getWorstCard();
+      return $this->getWorstCard($playerCards);
     }
-    $this->cards->removeCard($card);
-    return $card;
   }
 
   function processRound($suit, array $playedCards) {
@@ -39,7 +30,6 @@ class StandardPlayer implements Player {
   }
 
   function processCardsForNewHand(array $cards) {
-    $this->cards = new CardContainer($cards);
     $this->queenOfSpadesPlayed = false;
   }
 
@@ -47,35 +37,36 @@ class StandardPlayer implements Player {
    * Finds the best same-suit card to play in a round and removes it from the
    * player's card list. Helper method of playCard().
    *
-   * @param string[] $playedCards the played cards
+   * @param CardContainer $playerCards this player's cards
    * @param int $suit the suit of the round
+   * @param string[] $cardsInRound the played cards
    * @return string the card to play
    */
-  private function selectBestSuitCard($playedCards, $suit) {
+  private function selectBestSuitCard($playerCards, $suit, $cardsInRound) {
     // Handle special cases with Spades.
     if ($suit === Card::SPADES && !$this->queenOfSpadesPlayed) {
-      if ($this->cards->hasCard(Card::SPADES . Card::QUEEN)
-          && (in_array(Card::SPADES . Card::KING, $playedCards)
-              || in_array(Card::SPADES . Card::ACE,  $playedCards))) {
+      if ($playerCards->hasCard(Card::SPADES . Card::QUEEN)
+          && (in_array(Card::SPADES . Card::KING, $cardsInRound)
+              || in_array(Card::SPADES . Card::ACE,  $cardsInRound))) {
         return Card::SPADES . Card::QUEEN;
       }
-      else if (count($playedCards) === Game::N_OF_PLAYERS - 1
-               && $this->cards->getMaxCardForSuit(Card::SPADES) >= Card::KING
-               && !in_array(Card::SPADES . Card::QUEEN, $playedCards)) {
-        return Card::SPADES . $this->cards->getMaxCardForSuit(Card::SPADES);
+      else if (count($cardsInRound) === Game::N_OF_PLAYERS - 1
+               && $playerCards->getMaxCardForSuit(Card::SPADES) >= Card::KING
+               && !in_array(Card::SPADES . Card::QUEEN, $cardsInRound)) {
+        return Card::SPADES . $playerCards->getMaxCardForSuit(Card::SPADES);
       }
     }
 
     // Find the biggest card of the current suit
     $biggestPlayed = 0;
-    foreach ($playedCards as $card) {
+    foreach ($cardsInRound as $card) {
       if (Card::getCardSuit($card) === $suit && Card::getCardRank($card) > $biggestPlayed) {
         $biggestPlayed = Card::getCardRank($card);
       }
     }
 
     $biggestPossible = 0;
-    foreach ($this->cards->getCards()[$suit] as $card) {
+    foreach ($playerCards->getCards()[$suit] as $card) {
       if ($card < $biggestPlayed) {
         $biggestPossible = $card;
       } else {
@@ -87,24 +78,30 @@ class StandardPlayer implements Player {
       return $suit . $biggestPossible;
     } else {
       // No card is small enough...
-      if (count($playedCards) === Game::N_OF_PLAYERS - 1) {
+      if (count($cardsInRound) === Game::N_OF_PLAYERS - 1) {
         // We're going to take the cards, so let's get rid of the biggest
-        return $suit . $this->cards->getMaxCardForSuit($suit);
+        return $suit . $playerCards->getMaxCardForSuit($suit);
       } else {
         // Let's hope someone else will have a bigger card
-        return $suit . $this->cards->getMinCardForSuit($suit);
+        return $suit . $playerCards->getMinCardForSuit($suit);
       }
     }
   }
 
-  private function getWorstCard() {
-    if (!$this->queenOfSpadesPlayed && $this->cards->hasCardForSuit(Card::SPADES)) {
+  /**
+   * Returns the player's worst card. Used when the player does not have any card for the suit of the current round.
+   *
+   * @param CardContainer $playerCards this player's cards
+   * @return string the code of the chosen card to play
+   */
+  private function getWorstCard($playerCards) {
+    if (!$this->queenOfSpadesPlayed && $playerCards->hasCardForSuit(Card::SPADES)) {
       $card = false;
-      if ($this->cards->hasCard(Card::SPADES . Card::QUEEN)) {
+      if ($playerCards->hasCard(Card::SPADES . Card::QUEEN)) {
         $card = Card::SPADES . Card::QUEEN;
-      } else if ($this->cards->hasCard(Card::SPADES . Card::ACE)) {
+      } else if ($playerCards->hasCard(Card::SPADES . Card::ACE)) {
         $card = Card::SPADES . Card::ACE;
-      } else if ($this->cards->hasCard(Card::SPADES . Card::KING)) {
+      } else if ($playerCards->hasCard(Card::SPADES . Card::KING)) {
         $card = Card::SPADES . Card::KING;
       }
       if ($card) {
@@ -114,7 +111,7 @@ class StandardPlayer implements Player {
 
     $max = 0;
     $maxSuit = 0;
-    foreach ($this->cards->getCards() as $suit => $cardsOfSuit) {
+    foreach ($playerCards->getCards() as $suit => $cardsOfSuit) {
       $value = end($cardsOfSuit);
       if ($value > $max) {
         $max = $value;
@@ -127,14 +124,15 @@ class StandardPlayer implements Player {
   /**
    * Chooses a card to start a new round.
    *
+   * @param CardContainer $playerCards this player's cards
    * @param boolean $heartsPlayed whether Hearts have already been played
    * @return string card ID the player wants to use
    */
-  private function selectCardForRoundStart($heartsPlayed) {
+  private function selectCardForRoundStart($playerCards, $heartsPlayed) {
     $minCard = Card::ACE + 1;
     $minCardSuit = -1;
 
-    foreach ($this->cards->getCards() as $suit => $cardsOfSuit) {
+    foreach ($playerCards->getCards() as $suit => $cardsOfSuit) {
       if (($suit === Card::HEARTS && !$heartsPlayed) || empty($cardsOfSuit)) {
         continue;
       }
@@ -149,10 +147,10 @@ class StandardPlayer implements Player {
       return $minCardSuit . $minCard;
     }
 
-    if ($this->cards->hasCardForSuit(Card::HEARTS)) {
-      return Card::HEARTS . $this->cards->getMinCardForSuit(Card::HEARTS);
+    if ($playerCards->hasCardForSuit(Card::HEARTS)) {
+      return Card::HEARTS . $playerCards->getMinCardForSuit(Card::HEARTS);
     } else {
-      var_dump($this->cards);
+      var_dump($playerCards);
       throw new Exception('Error in startRound; did not expect empty card list');
     }
   }
