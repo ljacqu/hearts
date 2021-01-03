@@ -1,32 +1,42 @@
 <?php
 
-/**
- * More advanced player implementation: takes into consideration when other players are out of cards for certain suits,
- * and considers his own cards more nuanced (e.g. doesn't blindly try to get rid of his biggest cards but also considers
- * what his other cards in that suit are).
- */
-class AdvancedPlayer implements Player {
+class CardCountingPlayer implements Player {
 
-  /** @var int The player ID of this player. */
   private $playerId;
 
-  /**
-   * @var int[][] Keeps track which players (presumably) have cards in a certain suit. The key of the first dimension
-   * is the suit constant. The second dimension is the collection of player IDs. Player IDs are removed when it is
-   * apparent that they do not have any card in the given suit.
-   */
+  /** @var CardContainer Container with all unknown cards. */
+  private $allCards;
+
   private $playersBySuit;
 
   /** @var boolean Whether the queen of spades has been played. */
   private $queenOfSpadesPlayed;
 
-  /**
-   * Constructor.
-   *
-   * @param int $playerId this player's ID
-   */
   function __construct($playerId) {
     $this->playerId = $playerId;
+  }
+
+  function processCardsForNewHand(array $cards) {
+    $this->queenOfSpadesPlayed = false;
+
+    $allCards = [];
+    foreach (Card::getAllSuits() as $suit) {
+      foreach (range(2, Card::ACE) as $rank) {
+        if (!in_array($suit . $rank, $cards, true)) {
+          $allCards[] = $suit . $rank;
+        }
+      }
+    }
+    $this->allCards = CardContainer::fromCardCodes($allCards);
+
+    $allOtherPlayers = range(0, Game::N_OF_PLAYERS - 1);
+    unset($allOtherPlayers[$this->playerId]);
+
+    $playersBySuit = [];
+    foreach (Card::getAllSuits() as $suit) {
+      $playersBySuit[$suit] = $allOtherPlayers;
+    }
+    $this->playersBySuit = $playersBySuit;
   }
 
   function startHand($playerCards) {
@@ -41,7 +51,7 @@ class AdvancedPlayer implements Player {
     if ($playerCards->hasCardForSuit($suit)) {
       return $this->selectSameSuitCard($suit, $playerCards, $playedCards);
     }
-    return $this->selectWorstCard($playerCards);
+    return $this->selectWorstCard($playerCards, $playedCards);
   }
 
   function processRound($suit, array $playedCards) {
@@ -55,20 +65,17 @@ class AdvancedPlayer implements Player {
           unset($this->playersBySuit[$suit][$playerIdIndex]);
         }
       }
+      if ($playerId !== $this->playerId) {
+         $this->allCards->removeCard($card);
+      }
     }
-  }
 
-  function processCardsForNewHand(array $cards) {
-    $this->queenOfSpadesPlayed = false;
-
-    $allOtherPlayers = range(0, Game::N_OF_PLAYERS - 1);
-    unset($allOtherPlayers[$this->playerId]);
-
-    $playersBySuit = [];
+    // After removal, if no more cards are left for a suit, it means no one has that suit anymore (logically)
     foreach (Card::getAllSuits() as $suit) {
-      $playersBySuit[$suit] = $allOtherPlayers;
+      if (!$this->allCards->hasCardForSuit($suit)) {
+        $this->playersBySuit[$suit] = [];
+      }
     }
-    $this->playersBySuit = $playersBySuit;
   }
 
   // --------------------
@@ -84,6 +91,11 @@ class AdvancedPlayer implements Player {
    * @return string the code of the card to play
    */
   private function selectSameSuitCard($suit, $playerCards, array $cardsInRound) {
+    $allUnknownCards = $this->allCards->createCopy();
+    foreach ($cardsInRound as $card) {
+      $allUnknownCards->removeCard($card);
+    }
+
     // Special cases around the queen of spades
     if ($suit === Card::SPADES && !$this->queenOfSpadesPlayed) {
       if ($playerCards->hasCard(Card::SPADES . Card::QUEEN)
@@ -115,6 +127,7 @@ class AdvancedPlayer implements Player {
       }
     }
 
+    // todo here at some point decide to maybe take rounds when appropriate
     if ($biggestPossible !== 0) {
       return $suit . $biggestPossible;
     } else {
@@ -127,12 +140,12 @@ class AdvancedPlayer implements Player {
       }
 
       // No card is small enough...
-      if (empty($missingPlayers)) {
+      if (empty($missingPlayers) || $this->getNumberOfCardsAbove($suit, $playerCards->getMinCardForSuit($suit)) === 0) {
         // We're going to take the cards, so let's get rid of the biggest
-        return $suit . $playerCards->getMaxCardForSuit($suit);
+        return $suit . $this->getMaxRankAvoidingQueenOfSpades($suit, $playerCards);
       } else {
         // Let's hope someone else will have a bigger card
-        return $suit . $playerCards->getMinCardForSuit($suit);
+        return $suit . $this->getMinRankAvoidingQueenOfSpades($suit, $playerCards);
       }
     }
   }
@@ -141,17 +154,21 @@ class AdvancedPlayer implements Player {
    * Selects the worst card. Used when the player can play a card from a different suit.
    *
    * @param CardContainer $playerCards the player's cards
+   * @param string[] $cardsInHand the cards which are in the hand so far
    * @return string code of the card to play
    */
-  private function selectWorstCard($playerCards) {
+  private function selectWorstCard($playerCards, $cardsInHand) {
     // Get rid of spades cards if queen of spades is still around
     if (!$this->queenOfSpadesPlayed && $playerCards->hasCardForSuit(Card::SPADES)) {
       if ($playerCards->hasCard(Card::SPADES . Card::QUEEN)) {
         return Card::SPADES . Card::QUEEN;
-      } else if ($playerCards->hasCard(Card::SPADES . Card::ACE)) {
-        return Card::SPADES . Card::ACE;
-      } else if ($playerCards->hasCard(Card::SPADES . Card::KING)) {
-        return Card::SPADES . Card::KING;
+      }
+      if (!in_array(Card::SPADES . Card::QUEEN, $cardsInHand)) {
+        if ($playerCards->hasCard(Card::SPADES . Card::ACE)) {
+          return Card::SPADES . Card::ACE;
+        } else if ($playerCards->hasCard(Card::SPADES . Card::KING)) {
+          return Card::SPADES . Card::KING;
+        }
       }
     }
 
@@ -177,6 +194,41 @@ class AdvancedPlayer implements Player {
     return key($weightByCard);
   }
 
+  /**
+   * @param int $suit
+   * @param CardContainer $playerCards
+   * @return string
+   */
+  private function getMaxRankAvoidingQueenOfSpades($suit, $playerCards) {
+    $maxRank = $playerCards->getMaxCardForSuit($suit);
+    if ($suit === Card::SPADES && $maxRank === Card::QUEEN) {
+      $spadeCards = $playerCards->getCards()[$suit];
+      end($spadeCards);
+      prev($spadeCards);
+      if (current($spadeCards) !== false) {
+        return current($spadeCards);
+      }
+    }
+    return $maxRank;
+  }
+
+  /**
+   * @param int $suit
+   * @param CardContainer $playerCards
+   * @return string
+   */
+  private function getMinRankAvoidingQueenOfSpades($suit, $playerCards) {
+    $minRank = $playerCards->getMinCardForSuit($suit);
+    if ($suit === Card::SPADES && $minRank === Card::QUEEN) {
+      $spadeCards = $playerCards->getCards()[$suit];
+      reset($spadeCards);
+      next($spadeCards);
+      if (current($spadeCards) !== false) {
+        return current($spadeCards);
+      }
+    }
+    return $minRank;
+  }
 
   // --------------------
   // Round start
@@ -190,6 +242,20 @@ class AdvancedPlayer implements Player {
    * @return string code of the card to play
    */
   private function selectCardForRoundStart($playerCards, $heartsPlayed) {
+    if (!$this->queenOfSpadesPlayed && $playerCards->hasCardForSuit(Card::SPADES)) {
+      if ($playerCards->hasCard(Card::SPADES . Card::QUEEN) && $this->isOnlyMissingSpadesCardAboveQueen()) {
+        // Special case: if we know only king and/or ace of spades is left and we have the queen, we play the queen
+        return Card::SPADES . Card::QUEEN;
+      }
+      if ($this->isOnlyMissingSpadesQueen()) {
+        // Likewise, if we know only the queen of spades is missing and we have something smaller, let's also play it
+        $maxRankBeforeQueen = $this->getMaxCardRankBefore(Card::SPADES, $playerCards, Card::QUEEN);
+        if ($maxRankBeforeQueen !== false) {
+          return Card::SPADES . $maxRankBeforeQueen;
+        }
+      }
+    }
+
     $minCardBySuit = [];
     foreach (Card::getAllSuits() as $suit) {
       if ($playerCards->hasCardForSuit($suit)) {
@@ -200,9 +266,13 @@ class AdvancedPlayer implements Player {
     $weightsByCardCode = [];
     foreach ($minCardBySuit as $suit => $rank) {
       $nOfPlayers = count($this->playersBySuit[$suit]) ?: -20;
-      $value = $rank === Card::ACE ? -20 : Card::ACE - $rank;
-      $weight = $nOfPlayers + $value + $this->getPenaltyForCard($suit, $rank, $heartsPlayed);
+      $factorFromOtherCards = $this->calculateFactorFromOtherCards($suit, $rank);
+      $rankFactor = Card::ACE - $rank;
+      $weight = $nOfPlayers + $factorFromOtherCards + $rankFactor + $this->getPenaltyForCard($suit, $rank, $heartsPlayed);
       $weightsByCardCode[$suit . $rank] = $weight;
+      var_dump('weight[' . $suit . $rank . '] = ' . $weight . " = players=$nOfPlayers + rankFactor=$rankFactor 
+        + factorFromOtherCards=$factorFromOtherCards + penalty="
+          . $this->getPenaltyForCard($suit, $rank, $heartsPlayed));
     }
 
     arsort($weightsByCardCode);
@@ -225,6 +295,19 @@ class AdvancedPlayer implements Player {
     return 0;
   }
 
+  private function calculateFactorFromOtherCards($suit, $rank) {
+    $numberOfBiggerCards = $this->getNumberOfCardsAbove($suit, $rank);
+    if ($numberOfBiggerCards === 0) {
+      return -20;
+    }
+    $numberOfSmallerCards = $this->getNumberOfCardsBelow($suit, $rank);
+    if ($numberOfSmallerCards === 0) {
+      // Small score boost for cards that simply can't be taken anymore
+      return 10 + $numberOfBiggerCards;
+    }
+    return $numberOfBiggerCards;
+  }
+
   /**
    * Returns the smallest available card for the given suit, preferring the king and ace of spades over the queen
    * when appropriate.
@@ -241,17 +324,75 @@ class AdvancedPlayer implements Player {
         return Card::KING;
       }
 
-      // Taking the ace of spades instead of the queen actually makes sense when hearts haven't been played yet:
-      // hopefully another player is out of spades cards and will play hearts, allowing the player to then use a good
-      // Hearts cards he hasn't been able to play until now. I guess otherwise better to stick with the queen in hopes
-      // that someone else only has the king left for spades?
-      // Note that these cards are anyway heavily penalized in their score so this is only relevant if the user has to
-      // start a round and only has really bad cards!
+      // The idea behind this is commented in AdvancedPlayer
       if ($playerCards->hasCard(Card::SPADES . Card::ACE)
           && !$heartsPlayed && $playerCards->hasCardForSuit(Card::HEARTS)) {
         return Card::ACE;
       }
     }
     return $minRank;
+  }
+
+  /**
+   * Returns the maximum available rank that is smaller than the given threshold.
+   *
+   * @param int $suit the suit ({@link Card} constant)
+   * @param CardContainer $cardContainer the card container to look in
+   * @param int $thresholdRank the rank this method may not exceed
+   * @return int|false the maximum rank, or false if none is available
+   */
+  private function getMaxCardRankBefore($suit, $cardContainer, $thresholdRank) {
+    $cards = $cardContainer->getCards()[$suit];
+    $maxValue = false;
+    foreach ($cards as $rank) {
+      if ($rank < $thresholdRank) {
+        $maxValue = $rank;
+      } else {
+        break; // Cards are sorted: if $rank no longer < $threshold, stop
+      }
+    }
+    return $maxValue;
+  }
+
+  // ------------
+  // Card tracking helper
+  // ------------
+
+  private function getNumberOfCardsAbove($suit, $rank) {
+    $count = 0;
+    foreach ($this->allCards->getCards()[$suit] as $card) {
+      if ($card > $rank) {
+        ++$count;
+      }
+    }
+    return $count;
+  }
+
+  private function getNumberOfCardsBelow($suit, $rank) {
+    $count = 0;
+    foreach ($this->allCards->getCards()[$suit] as $card) {
+      if ($card < $rank) {
+        ++$count;
+      } else {
+        break; // Values are sorted: if not smaller, no entry will be afterwards
+      }
+    }
+    return $count;
+  }
+
+  private function isOnlyMissingSpadesCardAboveQueen() {
+    $spadeCards = $this->allCards->getCards()[Card::SPADES];
+    if (!empty($spadeCards) && count($spadeCards) <= 2) {
+      $card1 = reset($spadeCards);
+      $card2 = next($spadeCards);
+      return ($card1 === Card::KING || $card1 === Card::ACE)
+          && ($card2 === Card::ACE  || $card2 === false);
+    }
+    return false;
+  }
+
+  private function isOnlyMissingSpadesQueen() {
+    $spadeCards = $this->allCards->getCards()[Card::SPADES];
+    return count($spadeCards) === 1 && reset($spadeCards) === Card::QUEEN;
   }
 }
