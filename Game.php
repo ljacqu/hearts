@@ -19,8 +19,15 @@ class Game {
   const HUMAN_ID = 0;
 
   // ------ Game state
+  /** @var boolean True if game is in evaluation mode: cards are distributed from a test set,
+   *               and all players are computers.
+   */
+  private $isEvaluation;
+
   /** @var int Number of the current hand. */
   private $handNumber;
+
+  private $name;
 
   /** @var Player[] Contains the players of the game. */
   private $players;
@@ -55,12 +62,15 @@ class Game {
   private $currentRoundStarter;
 
 
-  function __construct() {
+  function __construct(GameOptions $gameOptions) {
     $this->handNumber = 0;
     $this->points  = [];
-    $this->players = [];
+
+    $this->isEvaluation = $gameOptions->usePredefinedHands;
+    $this->name = $gameOptions->name;
+
     for ($i = 0; $i < self::N_OF_PLAYERS; ++$i) {
-      $this->players[] = $i === self::HUMAN_ID ? new HumanPlayer() : new AdvancedPlayer($i);
+      $this->players[] = $gameOptions->createPlayer($i);
     }
     $this->state = GameState::HAND_START;
   }
@@ -144,15 +154,27 @@ class Game {
    * Distributes the cards to players randomly.
    */
   private function distributeCards() {
-    $deck = $this->initializeDeck();
-    shuffle($deck);
+    if ($this->isEvaluation) {
+      $hands = json_decode(file_get_contents('./eval/cards.json'), true);
+      $currentHand = $hands[$this->handNumber];
 
-    $this->currentHandCards = [];
-    $cardsPerPlayer = floor(count($deck) / self::N_OF_PLAYERS);
-    foreach ($this->players as $index => $player) {
-      $newCards = array_slice($deck, $index * $cardsPerPlayer, $cardsPerPlayer);
-      $this->currentHandCards[$index] = CardContainer::fromCardCodes($newCards);
-      $player->processCardsForNewHand($newCards);
+      foreach ($this->players as $index => $player) {
+        $this->currentHandCards[$index] = CardContainer::fromCardCodes($currentHand[$index]);
+        $player->processCardsForNewHand($currentHand[$index]);
+      }
+    } else {
+      $deck = $this->initializeDeck();
+      shuffle($deck);
+
+      $this->currentHandCards = [];
+      $cardsPerPlayer = floor(count($deck) / self::N_OF_PLAYERS);
+      $rawCardsPerPlayer = [];
+      foreach ($this->players as $index => $player) {
+        $newCards = array_slice($deck, $index * $cardsPerPlayer, $cardsPerPlayer);
+        $rawCardsPerPlayer[$index] = $newCards;
+        $this->currentHandCards[$index] = CardContainer::fromCardCodes($newCards);
+        $player->processCardsForNewHand($newCards);
+      }
     }
   }
 
@@ -177,6 +199,22 @@ class Game {
     if (count($this->currentRoundCards) !== self::N_OF_PLAYERS) {
       var_dump($this->currentRoundCards);
       throw new Exception("Registered cards is not equals to the number of players!");
+    }
+    foreach ($this->players as $player) {
+      $player->processRound($this->currentRoundSuit, $this->currentRoundCards);
+    }
+
+    $nextStarter = $this->prepareNextRound();
+    return $nextStarter;
+  }
+
+  function playAllPlayers() {
+    $this->currentRoundCards = array();
+    $playerId = $this->currentRoundStarter;
+
+    while (!isset($this->currentRoundCards[$playerId])) {
+      $this->getAndRegisterCardFromPlayer($playerId);
+      $playerId = $this->nextPlayer($playerId);
     }
     foreach ($this->players as $player) {
       $player->processRound($this->currentRoundSuit, $this->currentRoundCards);
@@ -267,16 +305,27 @@ class Game {
       }
     }
     $this->points[] = $this->currentHandPoints;
+    $this->logResultOfHandIfEvaluation();
     $this->currentHandPoints = array_fill(0, self::N_OF_PLAYERS, 0);
 
     // Sum points for every player; if one player has >= 100 points, signal that the game has ended.
     for ($i = 0; $i < self::N_OF_PLAYERS; ++$i) {
       $totalPoints = array_sum(array_column($this->points, $i));
-      if ($totalPoints >= 100) {
+      if (!$this->isEvaluation && $totalPoints >= 100) {
         return GameState::GAME_END;
       }
     }
     return GameState::HAND_START;
+  }
+
+  private function logResultOfHandIfEvaluation() {
+    if ($this->isEvaluation) {
+      $evalText = "{$this->name}:\t{$this->handNumber}\t" . implode("\t", $this->currentHandPoints);
+
+      $fh = fopen('./eval/evaluation.txt', 'a');
+      fwrite($fh, "\n$evalText");
+      fclose($fh);
+    }
   }
 
   function startNewHand() {

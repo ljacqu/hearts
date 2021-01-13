@@ -135,4 +135,26 @@ class CardContainer {
     }
     return true;
   }
+
+  function countNumberOfCardsAboveRank($suit, $rankLimit) {
+    $count = 0;
+    foreach ($this->cards[$suit] as $rank) {
+      if ($rank > $rankLimit) {
+        ++$count;
+      }
+    }
+    return $count;
+  }
+
+  function countNumberOfCardsBelowRank($suit, $rankLimit) {
+    $count = 0;
+    foreach ($this->cards[$suit] as $rank) {
+      if ($rank < $rankLimit) {
+        ++$count;
+      } else {
+        break; // Cards are sorted, can break as soon as $rank is no longer smaller than the limit
+      }
+    }
+    return $count;
+  }
 }

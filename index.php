@@ -7,12 +7,16 @@ $start = microtime(true);
 require 'functions.php';
 require 'Card.php';
 require 'CardContainer.php';
-require 'GameState.php';
-require 'Game.php';
+
 require './player/Player.php';
 require './player/StandardPlayer.php';
 require './player/AdvancedPlayer.php';
+require './player/CardCountingPlayer.php';
 require './player/HumanPlayer.php';
+
+require 'GameOptions.php';
+require 'GameState.php';
+require 'Game.php';
 require 'Displayer.php';
 
 unset($game);
@@ -25,7 +29,7 @@ if (isset($_GET['stop_game'])) {
 
 // Load or create game
 if (isset($_POST['new_game'])) {
-  $game = new Game();
+  $game = new Game(GameOptions::createDefaultOptions());
 } else if (isset($_SESSION['game'])) {
   $game = unserialize($_SESSION['game']);
   if (!($game instanceof Game)) {
