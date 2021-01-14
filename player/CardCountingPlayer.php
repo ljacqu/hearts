@@ -1,12 +1,17 @@
 <?php
 
+/**
+ * Advanced player implementation that keeps track of every card that has been played.
+ */
 class CardCountingPlayer implements Player {
 
+  /** @var int This player's ID. */
   private $playerId;
 
   /** @var CardContainer Container with all unknown cards. */
   private $allCards;
 
+  /** @var int[][] Player IDs presumed to have the given suit. Key of the first dimension is the suit. */
   private $playersBySuit;
 
   /** @var int[] Number of rounds with the given suit. */
@@ -15,13 +20,14 @@ class CardCountingPlayer implements Player {
   /** @var boolean Whether the queen of spades has been played. */
   private $queenOfSpadesPlayed;
 
+  /** @var boolean Whether hearts has been played at least once in the current hand. */
   private $heartsPlayed;
 
   function __construct($playerId) {
     $this->playerId = $playerId;
   }
 
-  function processCardsForNewHand(array $cards) {
+  function processCardsForNewHand($playerCards) {
     $this->roundsBySuit = array_fill_keys(Card::getAllSuits(), 0);
     $this->queenOfSpadesPlayed = false;
     $this->heartsPlayed = false;
@@ -29,7 +35,7 @@ class CardCountingPlayer implements Player {
     $allCards = [];
     foreach (Card::getAllSuits() as $suit) {
       foreach (range(2, Card::ACE) as $rank) {
-        if (!in_array($suit . $rank, $cards, true)) {
+        if (!$playerCards->hasCard($suit . $rank)) {
           $allCards[] = $suit . $rank;
         }
       }

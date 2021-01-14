@@ -29,7 +29,7 @@ class StandardPlayer implements Player {
     }
   }
 
-  function processCardsForNewHand(array $cards) {
+  function processCardsForNewHand($playerCards) {
     $this->queenOfSpadesPlayed = false;
   }
 

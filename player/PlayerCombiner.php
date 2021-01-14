@@ -52,9 +52,9 @@ class PlayerCombiner implements Player {
     }
   }
 
-  function processCardsForNewHand(array $cards) {
+  function processCardsForNewHand($playerCards) {
     foreach ($this->players as $player) {
-      $player->processCardsForNewHand($cards);
+      $player->processCardsForNewHand($playerCards);
     }
   }
 

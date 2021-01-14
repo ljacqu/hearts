@@ -58,7 +58,7 @@ class AdvancedPlayer implements Player {
     }
   }
 
-  function processCardsForNewHand(array $cards) {
+  function processCardsForNewHand($playerCards) {
     $this->queenOfSpadesPlayed = false;
 
     $allOtherPlayers = range(0, Game::N_OF_PLAYERS - 1);

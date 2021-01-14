@@ -160,8 +160,9 @@ class Game {
       $currentHand = $hands[$this->handNumber];
 
       foreach ($this->players as $index => $player) {
-        $this->currentHandCards[$index] = CardContainer::fromCardCodes($currentHand[$index]);
-        $player->processCardsForNewHand($currentHand[$index]);
+        $cardContainer = CardContainer::fromCardCodes($currentHand[$index]);
+        $this->currentHandCards[$index] = $cardContainer->createCopy();
+        $player->processCardsForNewHand($cardContainer);
       }
     } else {
       $deck = $this->initializeDeck();
@@ -169,12 +170,11 @@ class Game {
 
       $this->currentHandCards = [];
       $cardsPerPlayer = floor(count($deck) / self::N_OF_PLAYERS);
-      $rawCardsPerPlayer = [];
       foreach ($this->players as $index => $player) {
         $newCards = array_slice($deck, $index * $cardsPerPlayer, $cardsPerPlayer);
-        $rawCardsPerPlayer[$index] = $newCards;
-        $this->currentHandCards[$index] = CardContainer::fromCardCodes($newCards);
-        $player->processCardsForNewHand($newCards);
+        $cardContainer = CardContainer::fromCardCodes($newCards);
+        $this->currentHandCards[$index] = $cardContainer->createCopy();
+        $player->processCardsForNewHand($cardContainer);
       }
     }
   }

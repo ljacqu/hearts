@@ -22,7 +22,7 @@ class HumanPlayer implements Player {
     // Nothing to do
   }
 
-  function processCardsForNewHand(array $cards) {
+  function processCardsForNewHand($playerCards) {
     // Nothing to do
   }
 }

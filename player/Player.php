@@ -6,6 +6,13 @@
 interface Player {
 
   /**
+   * Takes the given cards for the start of a new round. Cards are expected to be valid and unique.
+   *
+   * @param CardContainer $playerCards the cards belonging to the user for a new hand
+   */
+  function processCardsForNewHand($playerCards);
+
+  /**
    * Called when the player is expected to start the hand, i.e. must return the two of clubs.
    *
    * @param CardContainer $playerCards a copy of this player's cards (for reference)
@@ -39,12 +46,5 @@ interface Player {
    * @param string[] $playedCards all played cards (key is player id)
    */
   function processRound($suit, array $playedCards);
-
-  /**
-   * Takes the given cards for the start of a new round. Cards are expected to be valid and unique.
-   *
-   * @param string[] $cards the cards belonging to the user for a new hand
-   */
-  function processCardsForNewHand(array $cards);
 
 }
