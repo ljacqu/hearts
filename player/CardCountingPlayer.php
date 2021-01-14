@@ -367,7 +367,10 @@ class CardCountingPlayer implements Player {
         $probabilityFirstCardLargest =
           $unaccountedCards->countNumberOfCardsBelowRank($suit, $min) / $totalUnaccountedCards;
 
-        $weight = pow(1 - $probabilityLastCardSmaller, 0.6)
+        // If last card is also smallest of all available, make factor -1 instead of 0 to make suit less important
+        $lastCardFactor = $probabilityLastCardSmaller === 1 ? -1 : pow(1 - $probabilityLastCardSmaller, 0.6);
+
+        $weight = $lastCardFactor
           + pow($probabilityFirstCardLargest, 0.75)
           - ($factorMiddleCards * 0.75);
 
@@ -381,9 +384,11 @@ class CardCountingPlayer implements Player {
   }
 
   /**
-   * @param int $suit
-   * @param CardContainer $playerCards
-   * @return string
+   * Returns the max available rank from the given player cards, avoiding the queen of spades.
+   *
+   * @param int $suit the suit
+   * @param CardContainer $playerCards the cards to search in
+   * @return int highest available rank
    */
   private function getMaxRankAvoidingQueenOfSpades($suit, $playerCards) {
     $maxRank = $playerCards->getMaxCardForSuit($suit);
@@ -399,9 +404,11 @@ class CardCountingPlayer implements Player {
   }
 
   /**
-   * @param int $suit
-   * @param CardContainer $playerCards
-   * @return string
+   * Returns the minimum available rank, avoiding the queen of spades if possible.
+   *
+   * @param int $suit the suit
+   * @param CardContainer $playerCards the cards to search in
+   * @return int lowest available rank
    */
   private function getMinRankAvoidingQueenOfSpades($suit, $playerCards) {
     $minRank = $playerCards->getMinCardForSuit($suit);
@@ -429,8 +436,8 @@ class CardCountingPlayer implements Player {
    */
   private function selectCardForRoundStart($playerCards, $heartsPlayed) {
     if (!$this->queenOfSpadesPlayed && $playerCards->hasCardForSuit(Card::SPADES)) {
+      // Special case: if we know only king and/or ace of spades is left and we have the queen, we play the queen
       if ($playerCards->hasCard(Card::SPADES . Card::QUEEN) && $this->isOnlyMissingSpadesCardAboveQueen()) {
-        // Special case: if we know only king and/or ace of spades is left and we have the queen, we play the queen
         return Card::SPADES . Card::QUEEN;
       }
       if ($this->isOnlyMissingSpadesQueen()) {
@@ -485,8 +492,12 @@ class CardCountingPlayer implements Player {
     }
     $numberOfSmallerCards = $this->getNumberOfCardsBelow($suit, $rank);
     if ($numberOfSmallerCards === 0) {
-      // Small score boost for cards that simply can't be taken anymore
+      // Small score boost for cards that simply can't be beaten
       return 10 + $numberOfBiggerCards;
+    }
+    if ($numberOfSmallerCards < count($this->playersBySuit)) {
+      // Very small score boost if it's kind of likely that we won't take
+      return 1 + $numberOfBiggerCards;
     }
     return $numberOfBiggerCards;
   }

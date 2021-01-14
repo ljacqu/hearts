@@ -24,10 +24,11 @@ class Game {
    */
   private $isEvaluation;
 
+  /** @var string Name describing the game (used when in evaluation mode). */
+  private $name;
+
   /** @var int Number of the current hand. */
   private $handNumber;
-
-  private $name;
 
   /** @var Player[] Contains the players of the game. */
   private $players;
