@@ -18,7 +18,7 @@ class PlayerCombiner implements Player {
     $this->players = [
       new StandardPlayer(),
       new AdvancedPlayer($playerId),
-      new CardCountingPlayer($playerId)
+      new CardCountingPlayer($playerId, true)
     ];
   }
 
@@ -71,32 +71,11 @@ class PlayerCombiner implements Player {
     if ($hasDifferentChoice) {
       $descriptions = [];
       foreach ($choices as $i => $choice) {
-        $descriptions[] = get_class($this->players[$i]) . '=' . $this->toCard($choice);
+        $descriptions[] = get_class($this->players[$i]) . '=<b>' . Card::format($choice) . '</b>';
       }
 
       $readableId = $this->playerId + 1;
       echo "<br />Player $readableId ($name): " . implode(', ', $descriptions);
     }
-  }
-
-  private function toCard($cardCode) {
-    $suit = Card::getCardSuit($cardCode);
-    $rank = Card::getCardRank($cardCode);
-
-    switch ($suit) {
-      case Card::CLUBS:    $suit = '♣'; break;
-      case Card::DIAMONDS: $suit = '♦'; break;
-      case Card::SPADES:   $suit = '♠'; break;
-      case Card::HEARTS:   $suit = '♥'; break;
-    }
-
-    switch ($rank) {
-      case Card::JACK:  $rank = 'J'; break;
-      case Card::QUEEN: $rank = 'Q'; break;
-      case Card::KING:  $rank = 'K'; break;
-      case Card::ACE:   $rank = 'A'; break;
-    }
-
-    return "<b>" . $suit . $rank . '</b>';
   }
 }

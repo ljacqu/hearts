@@ -57,7 +57,7 @@ class GameOptions {
       case self::HUMAN:         return new HumanPlayer();
       case self::STANDARD:      return new StandardPlayer();
       case self::ADVANCED:      return new AdvancedPlayer($playerId);
-      case self::CARD_COUNTING: return new CardCountingPlayer($playerId);
+      case self::CARD_COUNTING: return new CardCountingPlayer($playerId, false);
       case self::COMBINER:      return new PlayerCombiner($playerId);
       default:
         throw new Exception("Unknown player option {$this->playerConfigs[$playerId]}");

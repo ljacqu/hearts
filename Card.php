@@ -62,4 +62,31 @@ final class Card {
   static function getAllSuits() {
     return range(Card::CLUBS, Card::HEARTS);
   }
+
+  /**
+   * Formats the given card code to a human-readable text.
+   *
+   * @param string $cardCode composed card code (suit + rank)
+   * @return string formatted card
+   */
+  static function format($cardCode) {
+    $suit = Card::getCardSuit($cardCode);
+    $rank = Card::getCardRank($cardCode);
+
+    switch ($suit) {
+      case Card::CLUBS:    $suit = '♣'; break;
+      case Card::DIAMONDS: $suit = '♦'; break;
+      case Card::SPADES:   $suit = '♠'; break;
+      case Card::HEARTS:   $suit = '♥'; break;
+    }
+
+    switch ($rank) {
+      case Card::JACK:  $rank = 'J'; break;
+      case Card::QUEEN: $rank = 'Q'; break;
+      case Card::KING:  $rank = 'K'; break;
+      case Card::ACE:   $rank = 'A'; break;
+    }
+
+    return $suit . $rank;
+  }
 }
