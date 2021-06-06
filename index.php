@@ -12,6 +12,7 @@ require './player/Player.php';
 require './player/StandardPlayer.php';
 require './player/AdvancedPlayer.php';
 require './player/CardCountingPlayer.php';
+require './player/CardCountingPlayer1.php';
 require './player/PlayerCombiner.php';
 require './player/HumanPlayer.php';
 

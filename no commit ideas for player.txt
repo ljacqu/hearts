@@ -1,0 +1,7 @@
+- check if queen of spades already played
+
+- rank cards by played
+
+- awareness of which players do not have a suit anymore
+
+- better to lose high rank card if no low rank cards of the same suit...
