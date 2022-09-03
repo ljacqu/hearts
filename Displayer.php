@@ -21,7 +21,7 @@ class Displayer {
     $tags['table_center'] = $centerMessage;
     $tags['hand_nr'] = $this->game->getHandNumber();
     if (!$playable && $hasContinuation) {
-      $tags['table_center'] .= "\n<form action=\"{$_SERVER['PHP_SELF']}\" method=\"post\">
+      $tags['table_center'] .= "\n<form action=\"{$_SERVER['SCRIPT_NAME']}\" method=\"post\">
         <input type=\"submit\" value=\"Continue\" />
       </form>";
     }
@@ -56,7 +56,7 @@ class Displayer {
     $tags = array();
     $tags['color']  = $this->getHtmlCardColor($card);
     $tags['card']   = $htmlSuit . '<br />' . $htmlNumber;
-    $tags['formaction'] = $_SERVER['PHP_SELF'];
+    $tags['formaction'] = $_SERVER['SCRIPT_NAME'];
     $tags['cardcode'] = $card;
     return $this->replaceTags($htmlTemplate, $tags);
   }

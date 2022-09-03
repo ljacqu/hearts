@@ -39,7 +39,7 @@ if (isset($_POST['new_game'])) {
   }
 } else {
   // Offer to create a new game if we don't have any session.
-  echo '<form action="'.$_SERVER['PHP_SELF'].'" method="post">
+  echo '<form action="'.$_SERVER['SCRIPT_NAME'].'" method="post">
 <input type="submit" style="margin: auto" value="Create new game" name="new_game" />
 </form>';
   exit;
