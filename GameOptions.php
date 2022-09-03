@@ -25,11 +25,12 @@ class GameOptions {
   /**
    * Creates an options instance for a regular game play with a human player.
    *
+   * @param int $playerType player type to use for computer opponents (see constants)
    * @return GameOptions new options instance
    */
-  static function createDefaultOptions() {
+  static function createDefaultOptions(int $playerType): GameOptions {
     return new GameOptions('', false,
-      [self::HUMAN, self::COMBINER, self::COMBINER, self::COMBINER]);
+      [self::HUMAN, $playerType, $playerType, $playerType]);
   }
 
   /**
@@ -39,7 +40,7 @@ class GameOptions {
    * @param int[] $playerTypes players by player ID to use (see constants)
    * @return GameOptions instance with the provided values
    */
-  static function createForPlayerEvaluation($name, $playerTypes) {
+  static function createForPlayerEvaluation(string $name, array $playerTypes): GameOptions {
     return new GameOptions($name, true, $playerTypes);
   }
 
@@ -49,7 +50,7 @@ class GameOptions {
    * @param int $playerId 0-based index of the player
    * @return Player the player to use
    */
-  function createPlayer($playerId) {
+  function createPlayer(int $playerId) {
     if (!isset($this->playerConfigs[$playerId])) {
       throw new Exception('Unsupported player ID: ' . $playerId);
     }

@@ -30,7 +30,8 @@ if (isset($_GET['stop_game'])) {
 
 // Load or create game
 if (isset($_POST['new_game'])) {
-  $game = new Game(GameOptions::createDefaultOptions());
+  $difficulty = filter_input(INPUT_POST, 'difficulty', FILTER_DEFAULT, FILTER_REQUIRE_SCALAR);
+  $game = new Game(GameOptions::createDefaultOptions(inferDifficultyFromInput($difficulty)));
 } else if (isset($_SESSION['game'])) {
   $game = unserialize($_SESSION['game']);
   if (!($game instanceof Game)) {
@@ -40,7 +41,12 @@ if (isset($_POST['new_game'])) {
 } else {
   // Offer to create a new game if we don't have any session.
   echo '<form action="'.$_SERVER['SCRIPT_NAME'].'" method="post">
-<input type="submit" style="margin: auto" value="Create new game" name="new_game" />
+  Difficulty of opponents: <select name="difficulty">
+    <option value="easy">Easy</option>
+    <option value="medium">Medium</option>
+    <option value="hard" selected="selected">Hard</option>
+  </select>
+  <br /><input type="submit" style="margin: auto" value="Create new game" name="new_game" />
 </form>';
   exit;
 }
@@ -99,6 +105,16 @@ echo '<p class="footer">
  Page generated in ' . $gen_time . '&nbsp;s
  <br /><a href="?stop_game">Stop game?</a>
 </p>';
+
+function inferDifficultyFromInput(string $difficultyInput) {
+  switch ($difficultyInput) {
+    case 'easy': return GameOptions::STANDARD;
+    case 'medium': return GameOptions::ADVANCED;
+    case 'hard':
+    default:
+      return GameOptions::CARD_COUNTING;
+  }
+}
 ?>
 
  </body>
