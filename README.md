@@ -1,6 +1,6 @@
 Hearts in PHP
 =============
-A PHP 5 implementation of the card game [Hearts](https://en.wikipedia.org/wiki/Hearts).
+A PHP 7 implementation of the card game [Hearts](https://en.wikipedia.org/wiki/Hearts).
 In a round, the player of the largest card in the hand's suit takes the lot and 
 has to start the next round. Cards of the Hearts suit cost you one point each; 
 the queen of spades gives you 13 points. You want to get as few points as 
